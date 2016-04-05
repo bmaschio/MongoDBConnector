@@ -29,17 +29,15 @@ import jolie.runtime.Value;
 import jolie.runtime.ValueVector;
 import jolie.runtime.embedding.RequestResponse;
 
-
 /**
  *
  * @author maschio
  */
+@CanUseJars({
+    "mongo-java-driver-3.2.0.jar",
+    "mongo-java-logging-0.5.3.jar"
 
-@CanUseJars( {
-	"mongo-java-driver-3.2.0.jar", 
-	"mongo-java-logging-0.5.3.jar"
-
-} )
+})
 public class MongoDbConnector extends JavaService {
 
     private String username;
@@ -65,9 +63,9 @@ public class MongoDbConnector extends JavaService {
         String table = request.getFirstChild("table").strValue();
         Value v = Value.create();
         MongoCollection<Document> collection = db.getCollection(table);
-        
+
         FindIterable<Document> iterable = db.getCollection(table).find();
-        
+
         iterable.forEach(new Block<Document>() {
             @Override
             public void apply(final Document document) {
@@ -77,35 +75,45 @@ public class MongoDbConnector extends JavaService {
         });
         return v;
     }
-    
+
     @RequestResponse
-     public void insert (Value request){
-           String table = request.getFirstChild("table").strValue();
-           createDocument(request.getFirstChild("data"));
-     }
-     
-    private DBObject prepareQuery (Value request) {
-         DBObject dbObject = (DBObject) JSON.parse(request.getFirstChild("query").strValue());
+    public void insert(Value request) {
+        String table = request.getFirstChild("table").strValue();
+        createDocument(request.getFirstChild("data"));
+    }
+
+    private DBObject prepareQuery(Value request) {
+
+        DBObject dbObject = (DBObject) JSON.parse(request.getFirstChild("query").strValue());
         Set<String> keySet = dbObject.keySet();
         Iterator<String> iteratorKeySet = keySet.iterator();
-        while (iteratorKeySet.hasNext()){
+        while (iteratorKeySet.hasNext()) {
             String nameKey = iteratorKeySet.next();
-            DBObject condition = (DBObject) dbObject.get(nameKey);
-            Map condizionsMap = obj.toMap();
-            Iterator iteratorMapCondition = mapCondition.keySet().iterator();
-            String name = null;
-            while (iteratorMapCondition.hasNext()){       
-                name = (String) iteratorMapCondition.next();
-                mapCondition.put(name, 3);
+            DBObject conditionObject = (DBObject) dbObject.get(nameKey);
+            Map conditionsMap = conditionObject.toMap();
+            Iterator iteratorMapCondition = conditionsMap.keySet().iterator();
+            while (iteratorMapCondition.hasNext()) {
+                String conditionName = (String) iteratorMapCondition.next();
+                String conditionValue = (String) conditionsMap.get(conditionName);
+                if (request.getFirstChild("query").getFirstChild(conditionValue).isInt()) {
+                    conditionsMap.put(conditionName, request.getFirstChild("query").getFirstChild(conditionValue).intValue());
+                }
+                if (request.getFirstChild("query").getFirstChild(conditionValue).isDouble()) {
+                    conditionsMap.put(conditionName, request.getFirstChild("query").getFirstChild(conditionValue).doubleValue());
+                }
+                if (request.getFirstChild("query").getFirstChild(conditionValue).isString()) {
+                    conditionsMap.put(conditionName, request.getFirstChild("query").getFirstChild(conditionValue).strValue());
+                }
             }
-            obj.putAll(mapCondition);
-            dbObject.put(nameKey, obj);
+
+            conditionObject.putAll(conditionsMap);
+            dbObject.put(nameKey,conditionObject);
         }
-       return dbObject;
-       
-    
+        return dbObject;
     }
-    private Document createDocument (Value request){
+
+
+private Document createDocument (Value request){
        Document doc = new Document();
        
         Map<String, ValueVector> children = request.children();
@@ -158,32 +166,42 @@ public class MongoDbConnector extends JavaService {
             } else if (document.get(nameField) instanceof Date) {
                 Date date = document.getDate(nameField);
                 v.getChildren(nameField).add(Value.create(date.toString()));
-            } else if (document.get(nameField) instanceof Document) {
-                v.getChildren(nameField).add(processQueryRow(Document.class.cast(document.get(nameField))));
-            } else if (document.get(nameField).getClass().toString().equals("class java.util.ArrayList")) {
+            
 
-                ArrayList<Object> array = ArrayList.class.cast(document.get(nameField));
+} else if (document.get(nameField) instanceof Document) {
+                v.getChildren(nameField).add(processQueryRow(Document.class  
+
+.cast(document.get(nameField))));
+            } 
+
+else if (document.get(nameField).getClass().toString().equals("class java.util.ArrayList")) {
+
+                ArrayList<Object> array = ArrayList.class  
+
+    .cast(document.get(nameField));
                 Iterator<Object> iteratorArray = array.iterator();
-                while (iteratorArray.hasNext()) {
+
+    while (iteratorArray.hasNext () 
+        ) {
                     Object obj = iteratorArray.next();
-                    
-                    if (obj instanceof String) {
-                        v.getChildren(nameField).add(Value.create(String.class.cast(obj)));
-                    } else if (obj instanceof Integer) {
-                        v.getChildren(nameField).add(Value.create(Integer.class.cast(obj)));
-                    } else if (obj instanceof Double) {
-                        v.getChildren(nameField).add(Value.create(Double.class.cast(obj)));
-                    } else if (obj instanceof Date) {
-                        Date date = Date.class.cast(obj);
-                        v.getChildren(nameField).add(Value.create(date.toString()));
-                    } else if (obj instanceof Document) {
-                        v.getChildren(nameField).add(processQueryRow(Document.class.cast(obj)));
-                    }
-                }
 
-            }
+        if (obj instanceof String) {
+            v.getChildren(nameField).add(Value.create(String.class.cast(obj)));
+        } else if (obj instanceof Integer) {
+            v.getChildren(nameField).add(Value.create(Integer.class.cast(obj)));
+        } else if (obj instanceof Double) {
+            v.getChildren(nameField).add(Value.create(Double.class.cast(obj)));
+        } else if (obj instanceof Date) {
+            Date date = Date.class.cast(obj);
+            v.getChildren(nameField).add(Value.create(date.toString()));
+        } else if (obj instanceof Document) {
+            v.getChildren(nameField).add(processQueryRow(Document.class.cast(obj)));
+        }
+    }
 
-        };
+}
+
+};
 
         return v;
     }
