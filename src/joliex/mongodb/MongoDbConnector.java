@@ -65,9 +65,9 @@ public class MongoDbConnector extends JavaService {
 
     public Value query(Value request) {
         FindIterable<Document> iterable = null;
-        String table = request.getFirstChild("table").strValue();
+        String collectionName = request.getFirstChild("collection").strValue();
         Value v = Value.create();
-        MongoCollection<Document> collection = db.getCollection(table);
+        MongoCollection<Document> collection = db.getCollection(collectionName);
         if (request.hasChildren("query")) {
             System.out.println(request.getFirstChild("query").strValue());
             BSONObject dbObject = (BSONObject) JSON.parse(request.getFirstChild("query").strValue());
@@ -89,11 +89,30 @@ public class MongoDbConnector extends JavaService {
 
     @RequestResponse
     public void insert(Value request) {
-        String table = request.getFirstChild("table").strValue();
+        String collectionName = request.getFirstChild("collection").strValue();
         Document document = createDocument(request.getFirstChild("data"));
-        db.getCollection(table).insertOne(document);
+        db.getCollection(collectionName).insertOne(document);
     }
-
+   @RequestResponse
+   public void delete (Value request){
+  
+        String table = request.getFirstChild("table").strValue();
+        Value v = Value.create();
+        MongoCollection<Document> collection = db.getCollection(table);
+        BSONObject dbObject = (BSONObject) JSON.parse(request.getFirstChild("query").strValue());
+        collection.deleteMany((Bson) prepareQuery(dbObject, request));
+   }
+   
+   @RequestResponse
+   public void update (Value request ){
+        String table = request.getFirstChild("table").strValue();
+        Value v = Value.create();
+        MongoCollection<Document> collection = db.getCollection(table);
+        BSONObject dbObject = (BSONObject) JSON.parse(request.getFirstChild("query").strValue());
+        Document document = createDocument(request.getFirstChild("data"));
+        collection.updateMany((Bson) prepareQuery(dbObject, request),document);
+   
+   }
     private BSONObject prepareQuery(BSONObject dbObject, Value request) {
 
         Set<String> keySet = dbObject.keySet();
@@ -118,6 +137,7 @@ public class MongoDbConnector extends JavaService {
                 }
 
             }
+            
             if (dbObject.get(nameKey) instanceof BasicDBList) {
                 BasicDBList basicDbList = (BasicDBList) dbObject.get(nameKey);
                 Iterator<Object> listIterator = basicDbList.iterator();
