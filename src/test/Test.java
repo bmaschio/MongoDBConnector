@@ -5,28 +5,8 @@
  */
 package test;
 
-import java.io.IOException;
-import java.io.StringWriter;
-import java.io.Writer;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import jolie.runtime.Value;
-import jolie.runtime.ValuePrettyPrinter;
-import joliex.io.ConsoleService;
 import joliex.mongodb.MongoDbConnector;
-import joliex.util.StringUtils;
-
-
-/**
- *
- * @author maschio
- */
-import com.mongodb.DBObject;
-import com.mongodb.util.JSON;
-import java.util.Iterator;
-import java.util.Map;
-import java.util.Set;
-import org.bson.BSONObject;
 public class Test {
 
     /**
@@ -46,18 +26,22 @@ public class Test {
 
        
       
- /*       Value InsertValue = Value.create();
-        InsertValue.getNewChild("table").add(Value.create("prove"));
-        InsertValue.getNewChild("data");
-        InsertValue.getFirstChild("data").getChildren("nome").add(Value.create("Mark"));
-        InsertValue.getFirstChild("data").getChildren("cognome").add(Value.create("Green"));
-        InsertValue.getFirstChild("data").getChildren("age").add(Value.create(37));
-        mongoDbConnector.insert(InsertValue);
- */
+       Value InsertValue = Value.create();
+        InsertValue.getNewChild("collection").add(Value.create("prove"));
+        InsertValue.getNewChild("document");
+        InsertValue.getFirstChild("document").getChildren("nome").add(Value.create("Mark"));
+        InsertValue.getFirstChild("document").getChildren("cognome").add(Value.create("Green"));
+        InsertValue.getFirstChild("document").getChildren("age").add(Value.create(37));
+        
+        InsertValue.getFirstChild("document").getNewChild("spese").getChildren("ammount").add(Value.create(10.2));
+        InsertValue.getFirstChild("document").getNewChild("spese").getChildren("ammount").add(Value.create(10.3));
+ //       mongoDbConnector.insert(InsertValue);
+ 
         Value queryValue = Value.create();
-        queryValue.getNewChild("table").add(Value.create("prove"));
-        queryValue.getNewChild("query").add(Value.create("{nome: \"$nome\"}"));
-        queryValue.getFirstChild("query").getChildren("$nome").add(Value.create("Tom"));
+        queryValue.getNewChild("collection").add(Value.create("prove"));
+        queryValue.getNewChild("query").add(Value.create("{eta:{ $gt: 10}}"));
+       // queryValue.getFirstChild("query").getChildren("ammount").add(Value.create(30.0));
+
         mongoDbConnector.query(queryValue);
             
     }
