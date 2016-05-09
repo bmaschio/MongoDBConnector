@@ -8,12 +8,15 @@ connectValue.dbname ="prova";
 connectValue.port = 27017;
 connect@MongoDB(connectValue)();
 q.collection = "prove";
-q.query = "{nome:\"$name1\"}";
-q.query.name1 = "Carlo";
-
+q.document.nome = "Luca";
+q.document.cognome = "Rossi";
+q.document.eta = 20;
+q.document.spesa[0].ammount = 20.12;
+q.document.spesa[1].ammount = 21.12;
+q.document.spesa[2].ammount = 30.12;
 valueToPrettyString@StringUtils (q)(s);
 println@Console("q>>>>"+s)();
-query@MongoDB(q)(responseq);
+insert@MongoDB(q)(responseq);
 valueToPrettyString@StringUtils (responseq)(s);
 println@Console("responseq>>>>"+s)()
 }

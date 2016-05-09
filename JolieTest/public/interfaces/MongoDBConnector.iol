@@ -1,7 +1,9 @@
 interface MongoDBInterface {
-  RequestResponse: 
+  RequestResponse:
   connect (undefined)(undefined),
-  query (undefined)(undefined)
+  query (undefined)(undefined),
+  insert(undefined)(undefined),
+  update(undefined)(undefined)
 }
 
 
