@@ -7,9 +7,8 @@ package joliex.mongodb;
 
 import com.mongodb.BasicDBList;
 import com.mongodb.BasicDBObject;
-import jolie.runtime.JavaService;
 import com.mongodb.Block;
-import com.mongodb.DBObject;
+import jolie.runtime.JavaService;
 import org.bson.Document;
 import com.mongodb.MongoClient;
 import com.mongodb.MongoClientOptions;
@@ -18,26 +17,32 @@ import com.mongodb.client.FindIterable;
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoDatabase;
 import com.mongodb.util.JSON;
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.Iterator;
-import java.util.Map;
-
-import java.util.Set;
 import jolie.runtime.CanUseJars;
 import jolie.runtime.Value;
-import jolie.runtime.ValueVector;
 import jolie.runtime.embedding.RequestResponse;
-import org.bson.BSONObject;
-import org.bson.conversions.Bson;
-import org.bson.types.ObjectId;
+import org.bson.BsonDocument;
+import com.mongodb.client.model.Filters.*;
+import java.util.Date;
+import java.util.Iterator;
+import java.util.List;
+import java.util.ListIterator;
+import java.util.Map;
+import java.util.Set;
+import jolie.runtime.ValueVector;
+import org.bson.BsonArray;
+import org.bson.BsonDateTime;
+import org.bson.BsonDouble;
+import org.bson.BsonInt32;
+import org.bson.BsonObjectId;
+import org.bson.BsonString;
+import org.bson.BsonValue;
 
 /**
  *
  * @author maschio
  */
 @CanUseJars({
-    "mongo-java-driver-3.2.0.jar",
+    "mongo-java-driver-3.2.2.jar",
     "mongo-java-logging-0.5.3.jar"
 
 })
@@ -62,26 +67,24 @@ public class MongoDbConnector extends JavaService {
     }
 
     @RequestResponse
-
     public Value query(Value request) {
-        FindIterable<Document> iterable = null;
+        FindIterable<BsonDocument> iterable = null;
         String collectionName = request.getFirstChild("collection").strValue();
         Value v = Value.create();
-        MongoCollection<Document> collection = db.getCollection(collectionName);
-        if (request.hasChildren("query")) {
-            System.out.println(request.getFirstChild("query").strValue());
-            BSONObject dbObject = (BSONObject) JSON.parse(request.getFirstChild("query").strValue());
-            iterable = collection.find((Bson) prepareQuery(dbObject, request));
+        MongoCollection<BsonDocument> collection = db.getCollection(collectionName, BsonDocument.class);
+        System.out.println(request.getFirstChild("query").strValue());
 
-        } else {
-            iterable = collection.find();
-        };
+        BsonDocument dbObject = BsonDocument.parse(request.getFirstChild("query").strValue());
+        prepareQuery(dbObject, request);
+        iterable = collection.find(dbObject);
 
-        iterable.forEach(new Block<Document>() {
+        iterable.forEach(new Block<BsonDocument>() {
+
             @Override
-            public void apply(final Document document) {
-                Value queryValue = processQueryRow(document);
+            public void apply(BsonDocument t) {
+                Value queryValue = processQueryRow(t);
                 v.getChildren("row").add(queryValue);
+
             }
         });
         return v;
@@ -90,111 +93,113 @@ public class MongoDbConnector extends JavaService {
     @RequestResponse
     public void insert(Value request) {
         String collectionName = request.getFirstChild("collection").strValue();
-        Document document = createDocument(request.getFirstChild("data"));
-        db.getCollection(collectionName).insertOne(document);
-    }
-   @RequestResponse
-   public void delete (Value request){
-  
-        String table = request.getFirstChild("table").strValue();
-        Value v = Value.create();
-        MongoCollection<Document> collection = db.getCollection(table);
-        BSONObject dbObject = (BSONObject) JSON.parse(request.getFirstChild("query").strValue());
-        collection.deleteMany((Bson) prepareQuery(dbObject, request));
-   }
-   
-   @RequestResponse
-   public void update (Value request ){
-        String table = request.getFirstChild("table").strValue();
-        Value v = Value.create();
-        MongoCollection<Document> collection = db.getCollection(table);
-        BSONObject dbObject = (BSONObject) JSON.parse(request.getFirstChild("query").strValue());
-        Document document = createDocument(request.getFirstChild("data"));
-        collection.updateMany((Bson) prepareQuery(dbObject, request),document);
-   
-   }
-    private BSONObject prepareQuery(BSONObject dbObject, Value request) {
+        BsonDocument bsonDocument = createDocument(request.getFirstChild("document"));
 
+        db.getCollection(collectionName, BsonDocument.class).insertOne(bsonDocument);
+
+    }
+
+    @RequestResponse
+    public void delete(Value request) {
+
+    }
+
+    @RequestResponse
+    public void update(Value request) {
+
+    }
+
+    private BsonDocument prepareQuery(BsonDocument dbObject, Value request) {
         Set<String> keySet = dbObject.keySet();
         Iterator<String> iteratorKeySet = keySet.iterator();
         while (iteratorKeySet.hasNext()) {
-            String nameKey = iteratorKeySet.next();
-            if (dbObject.get(nameKey) instanceof String) {
+            String keyName = iteratorKeySet.next();
 
-                String conditionValue = (String) dbObject.get(nameKey);
-                
-                if (conditionValue.startsWith("$")) {
-                    conditionValue = conditionValue.substring(1);
-                    if (request.getFirstChild("query").getFirstChild(conditionValue).isInt()) {
-                        dbObject.put(nameKey, request.getFirstChild("query").getFirstChild(conditionValue).intValue());
+            if (dbObject.isString(keyName)) {
+
+                BsonString conditionValue = dbObject.getString(keyName);
+
+                if (conditionValue.getValue().startsWith("$")) {
+                    String conditionValueName = conditionValue.getValue().substring(1);
+                    if (request.getFirstChild("query").getFirstChild(conditionValueName).isInt()) {
+                        BsonInt32 objToInsert = new BsonInt32(request.getFirstChild("query").getFirstChild(conditionValueName).intValue());
+                        dbObject.put(keyName, objToInsert);
                     }
-                    if (request.getFirstChild("query").getFirstChild(conditionValue).isDouble()) {
-                        dbObject.put(nameKey, request.getFirstChild("query").getFirstChild(conditionValue).doubleValue());
+                    if (request.getFirstChild("query").getFirstChild(conditionValueName).isDouble()) {
+                        BsonDouble objToInsert = new BsonDouble(request.getFirstChild("query").getFirstChild(conditionValueName).doubleValue());
+                        dbObject.put(keyName, objToInsert);
                     }
-                    if (request.getFirstChild("query").getFirstChild(conditionValue).isString()) {
-                        dbObject.put(nameKey, request.getFirstChild("query").getFirstChild(conditionValue).strValue());
+                    if (request.getFirstChild("query").getFirstChild(conditionValueName).isString()) {
+                        BsonString objToInsert = new BsonString(request.getFirstChild("query").getFirstChild(conditionValueName).strValue());
+                        dbObject.put(keyName, objToInsert);
                     }
                 }
 
             }
-            
-            if (dbObject.get(nameKey) instanceof BasicDBList) {
-                BasicDBList basicDbList = (BasicDBList) dbObject.get(nameKey);
-                Iterator<Object> listIterator = basicDbList.iterator();
+            if (dbObject.isArray(keyName)) {
+                BsonArray array = dbObject.getArray(keySet);
+                ListIterator<BsonValue> listIterator = array.listIterator();
+
                 while (listIterator.hasNext()) {
-                    prepareQuery((BSONObject) listIterator.next(), request);
+                    prepareQuery(listIterator.next().asDocument(), request);
                 }
             }
 
-            if (dbObject.get(nameKey) instanceof BasicDBObject) {
-                DBObject conditionObject = (DBObject) dbObject.get(nameKey);
-                Map conditionsMap = conditionObject.toMap();
-                Iterator iteratorMapCondition = conditionsMap.keySet().iterator();
+            if (dbObject.isDocument(keyName)) {
+                BsonDocument conditionObject = dbObject.getDocument(keyName);
+                Iterator iteratorMapCondition = conditionObject.keySet().iterator();
                 while (iteratorMapCondition.hasNext()) {
                     String conditionName = (String) iteratorMapCondition.next();
-                     
-                    if (conditionsMap.get(conditionName) instanceof BasicDBList) {
-                        BasicDBList supportListValueCondition = new BasicDBList();
-                        BasicDBList listValueCondition = (BasicDBList) conditionsMap.get(conditionName);
-                        Iterator<Object> listValueConditionIterator = listValueCondition.iterator();
-                        while (listValueConditionIterator.hasNext()) {
-                            String conditionValue = (String) listValueConditionIterator.next();
-                            conditionValue = conditionValue.substring(1);
-                            if (request.getFirstChild("query").getFirstChild(conditionValue).isInt()) {
-                                supportListValueCondition.add(request.getFirstChild("query").getFirstChild(conditionValue).intValue());
-                            }
-                            if (request.getFirstChild("query").getFirstChild(conditionValue).isDouble()) {
-                                supportListValueCondition.add(request.getFirstChild("query").getFirstChild(conditionValue).doubleValue());
-                            }
-                            if (request.getFirstChild("query").getFirstChild(conditionValue).isString()) {
-                                supportListValueCondition.add(request.getFirstChild("query").getFirstChild(conditionValue).strValue());
+
+                    if (conditionObject.isArray(conditionName)) {
+                        BsonArray supportListValueCondition = new BsonArray();
+                        BsonArray listValueCondition = conditionObject.asArray();
+                        for (int counterCondition = 0; counterCondition < listValueCondition.size(); counterCondition++) {
+
+                            if (listValueCondition.get(counterCondition).isString()) {
+                                String conditionValue = listValueCondition.asString().getValue().substring(1);
+                                if (request.getFirstChild("query").getFirstChild(conditionValue).isInt()) {
+
+                                    supportListValueCondition.add(new BsonInt32(request.getFirstChild("query").getFirstChild(conditionValue).intValue()));
+                                }
+                                if (request.getFirstChild("query").getFirstChild(conditionValue).isDouble()) {
+                                    supportListValueCondition.add(new BsonDouble(request.getFirstChild("query").getFirstChild(conditionValue).doubleValue()));
+                                }
+                                if (request.getFirstChild("query").getFirstChild(conditionValue).isString()) {
+                                    supportListValueCondition.add(new BsonString(request.getFirstChild("query").getFirstChild(conditionValue).strValue()));
+                                }
                             }
 
                         }
-                        conditionsMap.put(conditionName, supportListValueCondition);
+                        conditionObject.append(conditionName, supportListValueCondition);
                     } else {
-                        String conditionValue = (String) conditionsMap.get(conditionName);
-                        conditionValue = conditionValue.substring(1);
-                        if (request.getFirstChild("query").getFirstChild(conditionValue).isInt()) {
-                            conditionsMap.put(conditionName, request.getFirstChild("query").getFirstChild(conditionValue).intValue());
-                        }
-                        if (request.getFirstChild("query").getFirstChild(conditionValue).isDouble()) {
-                            conditionsMap.put(conditionName, request.getFirstChild("query").getFirstChild(conditionValue).doubleValue());
-                        }
-                        if (request.getFirstChild("query").getFirstChild(conditionValue).isString()) {
-                            conditionsMap.put(conditionName, request.getFirstChild("query").getFirstChild(conditionValue).strValue());
+                        if (conditionObject.get(conditionName).isString()) {
+                            String conditionValue = conditionObject.getString(conditionName).getValue().substring(1);
+
+                            if (request.getFirstChild("query").getFirstChild(conditionValue).isInt()) {
+                                conditionObject.append(conditionName, new BsonInt32(request.getFirstChild("query").getFirstChild(conditionValue).intValue()));
+                            }
+                            if (request.getFirstChild("query").getFirstChild(conditionValue).isDouble()) {
+                                conditionObject.put(conditionName, new BsonDouble(request.getFirstChild("query").getFirstChild(conditionValue).doubleValue()));
+
+                            }
+                            if (request.getFirstChild("query").getFirstChild(conditionValue).isString()) {
+                                conditionObject.put(conditionName, new BsonString (request.getFirstChild("query").getFirstChild(conditionValue).strValue()));
+                            }
                         }
                     }
                 }
-                conditionObject.putAll(conditionsMap);
-                dbObject.put(nameKey, conditionObject);
+       
+                dbObject.put(keyName, conditionObject);
             }
         }
         return dbObject;
+
     }
 
-    private Document createDocument(Value request) {
-        Document doc = new Document();
+    private BsonDocument createDocument(Value request) {
+
+        BsonDocument bsonDocument = new BsonDocument();
 
         Map<String, ValueVector> children = request.children();
         Set<Map.Entry<String, ValueVector>> childrenSet = children.entrySet();
@@ -203,84 +208,106 @@ public class MongoDbConnector extends JavaService {
             Map.Entry<String, ValueVector> entry = iterator.next();
             ValueVector valueVector = entry.getValue();
             if (!valueVector.isEmpty()) {
+                BsonArray bsonArray = new BsonArray();
                 for (int counterValueVector = 0; counterValueVector < valueVector.size(); counterValueVector++) {
+
                     if (valueVector.get(counterValueVector).hasChildren()) {
-                        doc.append(entry.getKey(), createDocument(valueVector.get(counterValueVector)));
-                    }
-                    if (valueVector.get(counterValueVector).isBool()) {
-                        doc.append(entry.getKey(), valueVector.get(counterValueVector).boolValue());
+
+                        bsonArray.add(counterValueVector, createDocument(valueVector.get(counterValueVector)));
+
                     }
                     if (valueVector.get(counterValueVector).isInt()) {
-                        doc.append(entry.getKey(), valueVector.get(counterValueVector).intValue());
+                        BsonInt32 bsonObj = new BsonInt32(valueVector.get(counterValueVector).intValue());
+                        if (valueVector.size() == 1) {
+                            bsonDocument.append(entry.getKey(), bsonObj);
+                        } else {
+                            bsonArray.add(counterValueVector, bsonObj);
+                        }
                     }
                     if (valueVector.get(counterValueVector).isDouble()) {
-                        doc.append(entry.getKey(), valueVector.get(counterValueVector).doubleValue());
+                        BsonDouble bsonObj = new BsonDouble(valueVector.get(counterValueVector).doubleValue());
+                        if (valueVector.size() == 1) {
+                            bsonDocument.append(entry.getKey(), bsonObj);
+                        } else {
+                            bsonArray.add(counterValueVector, bsonObj);
+                        }
                     }
                     if (valueVector.get(counterValueVector).isString()) {
-                        doc.append(entry.getKey(), valueVector.get(counterValueVector).strValue());
+                        BsonString bsonObj = new BsonString(valueVector.get(counterValueVector).strValue());
+                        if (valueVector.size() == 1) {
+                            bsonDocument.append(entry.getKey(), bsonObj);
+                        } else {
+                            bsonArray.add(counterValueVector, bsonObj);
+                        }
                     }
+                }
+                if (!bsonArray.isEmpty()) {
+                    bsonDocument.append(entry.getKey(), bsonArray);
                 }
             } else {
                 System.out.println("Empty");
             }
-        }
 
-        return doc;
+        }
+        return bsonDocument;
     }
 
-    private Value processQueryRow(Document document) {
+    private Value processQueryRow(BsonDocument document) {
+
         Value v = Value.create();
         Set<String> keySet = document.keySet();
         Iterator<String> iteratorKeySet = keySet.iterator();
 
         while (iteratorKeySet.hasNext()) {
             String nameField = iteratorKeySet.next();
-            if (document.get(nameField) instanceof String) {
-                v.getChildren(nameField).add(Value.create(document.getString(nameField)));
-            } else if (document.get(nameField) instanceof Integer) {
-                v.getChildren(nameField).add(Value.create(document.getInteger(nameField)));
-            } else if (document.get(nameField) instanceof Double) {
-                v.getChildren(nameField).add(Value.create(document.getDouble(nameField)));
-            } else if (document.get(nameField) instanceof Date) {
-                Date date = document.getDate(nameField);
+            if (document.isString(nameField)) {
+                v.getChildren(nameField).add(Value.create(document.getString(nameField).getValue()));
+            } else if (document.isInt32(nameField)) {
+                v.getChildren(nameField).add(Value.create(document.getInt32(nameField).getValue()));
+            } else if (document.isDouble(nameField)) {
+                v.getChildren(nameField).add(Value.create(document.getDouble(nameField).getValue()));
+            } else if (document.isDateTime(nameField)) {
+                Date date = new Date(document.getDateTime(nameField).getValue());
                 v.getChildren(nameField).add(Value.create(date.toString()));
+            } else if (document.isDocument(nameField)) {
+                v.getChildren(nameField).add(processQueryRow(document.getDocument(nameField)));
+            } else if (document.isArray(nameField)) {
 
-            } else if (document.get(nameField) instanceof Document) {
-                v.getChildren(nameField).add(processQueryRow(Document.class
-                        .cast(document.get(nameField))));
-            } else if (document.get(nameField).getClass().toString().equals("class java.util.ArrayList")) {
-
-                ArrayList<Object> array = ArrayList.class
-                        .cast(document.get(nameField));
-                Iterator<Object> iteratorArray = array.iterator();
+                List<BsonValue> array = document.getArray(nameField).getValues();
+                Iterator<BsonValue> iteratorArray = array.iterator();
 
                 while (iteratorArray.hasNext()) {
                     Object obj = iteratorArray.next();
 
-                    if (obj instanceof String) {
-                        v.getChildren(nameField).add(Value.create(String.class.cast(obj)));
-                    } else if (obj instanceof Integer) {
-                        v.getChildren(nameField).add(Value.create(Integer.class.cast(obj)));
-                    } else if (obj instanceof Double) {
-                        v.getChildren(nameField).add(Value.create(Double.class.cast(obj)));
-                    } else if (obj instanceof Date) {
-                        Date date = Date.class.cast(obj);
+                    if (obj instanceof BsonString) {
+                        BsonString bsonObj = (BsonString) obj;
+                        v.getChildren(nameField).add(Value.create(bsonObj.getValue()));
+                    } else if (obj instanceof BsonInt32) {
+                        BsonInt32 bsonObj = (BsonInt32) obj;
+                        v.getChildren(nameField).add(Value.create(bsonObj.getValue()));
+                    } else if (obj instanceof BsonDouble) {
+                        BsonDouble bsonObj = (BsonDouble) obj;
+                        v.getChildren(nameField).add(Value.create(bsonObj.getValue()));
+                    } else if (obj instanceof BsonDateTime) {
+                        BsonDateTime date = BsonDateTime.class.cast(obj);
                         v.getChildren(nameField).add(Value.create(date.toString()));
-                    } else if (obj instanceof Document) {
-                        v.getChildren(nameField).add(processQueryRow(Document.class.cast(obj)));
+                    } else if (obj instanceof BsonDocument) {
+                        BsonDocument bsonObj = (BsonDocument) obj;
+                        v.getChildren(nameField).add(processQueryRow(bsonObj));
                     }
                 }
 
-            } else if (document.get(nameField) instanceof ObjectId) {
-                ObjectId objId;
-                objId = (ObjectId) document.get(nameField);
-                v.add(Value.create(objId.toHexString()));
+            } else if (document.get(nameField).isObjectId()) {
+                BsonObjectId objId;
+                objId = document.getObjectId(nameField);
+                v.add(Value.create(objId.getValue().toHexString()));
 
             }
 
         }
 
         return v;
+
     }
 
 }
