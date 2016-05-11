@@ -8,8 +8,9 @@ connectValue.dbname ="prova";
 connectValue.port = 27017;
 connect@MongoDB(connectValue)();
 q.collection = "prove";
-q.query = "{nome:\"$name1\"}";
-q.query.name1 = "Carlo";
+/*q.query = "{\"spesa.ammount\":{$gt:\"$ammount\"}}";*/
+q.query = "{\"spesa.ammount\":{$lt:\"$eta\"}}";
+q.query.eta = 30.12;
 
 valueToPrettyString@StringUtils (q)(s);
 println@Console("q>>>>"+s)();

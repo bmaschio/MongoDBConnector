@@ -5,6 +5,7 @@
  */
 package test;
 
+import jolie.runtime.FaultException;
 import jolie.runtime.Value;
 import joliex.mongodb.MongoDbConnector;
 public class Test {
@@ -12,7 +13,7 @@ public class Test {
     /**
      * @param args the command line arguments
      */
-    public static void main(String[] args) {
+    public static void main(String[] args) throws FaultException {
         // TODO code application logic here
         
         
@@ -39,7 +40,7 @@ public class Test {
  
         Value queryValue = Value.create();
         queryValue.getNewChild("collection").add(Value.create("prove"));
-        queryValue.getNewChild("query").add(Value.create("{eta:{ $gt: 10}}"));
+        queryValue.getNewChild("query").add(Value.create("eta:{ $gt: 10}}"));
        // queryValue.getFirstChild("query").getChildren("ammount").add(Value.create(30.0));
 
         mongoDbConnector.query(queryValue);

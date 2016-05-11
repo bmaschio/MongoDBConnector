@@ -1,9 +1,10 @@
 interface MongoDBInterface {
   RequestResponse:
-  connect (undefined)(undefined),
-  query (undefined)(undefined),
-  insert(undefined)(undefined),
-  update(undefined)(undefined)
+  connect (undefined)(undefined) throws MongoException ,
+  query (undefined)(undefined)   throws MongoException JsonParseException ,
+  insert(undefined)(undefined)   throws MongoException JsonParseException ,
+  update(undefined)(undefined)   throws MongoException JsonParseException ,
+  delete(undefined)(undefined)   throws MongoException JsonParseException
 }
 
 

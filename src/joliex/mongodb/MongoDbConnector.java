@@ -5,29 +5,28 @@
  */
 package joliex.mongodb;
 
-import com.mongodb.BasicDBList;
-import com.mongodb.BasicDBObject;
 import com.mongodb.Block;
 import jolie.runtime.JavaService;
-import org.bson.Document;
 import com.mongodb.MongoClient;
 import com.mongodb.MongoClientOptions;
+import com.mongodb.MongoException;
 
 import com.mongodb.client.FindIterable;
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoDatabase;
-import com.mongodb.util.JSON;
 import jolie.runtime.CanUseJars;
 import jolie.runtime.Value;
 import jolie.runtime.embedding.RequestResponse;
 import org.bson.BsonDocument;
-import com.mongodb.client.model.Filters.*;
 import java.util.Date;
 import java.util.Iterator;
 import java.util.List;
 import java.util.ListIterator;
 import java.util.Map;
 import java.util.Set;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+import jolie.runtime.FaultException;
 import jolie.runtime.ValueVector;
 import org.bson.BsonArray;
 import org.bson.BsonDateTime;
@@ -36,6 +35,7 @@ import org.bson.BsonInt32;
 import org.bson.BsonObjectId;
 import org.bson.BsonString;
 import org.bson.BsonValue;
+import org.bson.json.JsonParseException;
 
 /**
  *
@@ -43,7 +43,8 @@ import org.bson.BsonValue;
  */
 @CanUseJars({
     "mongo-java-driver-3.2.2.jar",
-    "mongo-java-logging-0.5.3.jar"
+    "mongodb-driver-3.2.2.jar",
+    "mongodb-driver-core-3.2.2.jar"
 
 })
 public class MongoDbConnector extends JavaService {
@@ -56,97 +57,149 @@ public class MongoDbConnector extends JavaService {
     private MongoClient mongoClient;
     private MongoDatabase db;
     private MongoClientOptions mongoClientOptions;
+    private static Logger log;
 
     @RequestResponse
-    public void connect(Value request) {
-        host = request.getFirstChild("host").strValue();
-        port = request.getFirstChild("port").intValue();
-        dbname = request.getFirstChild("dbname").strValue();
-        mongoClient = new MongoClient(host, port);
-        db = mongoClient.getDatabase(dbname);
+    public void connect(Value request) throws FaultException {
+        try {
+            host = request.getFirstChild("host").strValue();
+            port = request.getFirstChild("port").intValue();
+            dbname = request.getFirstChild("dbname").strValue();
+            log = Logger.getLogger("org.mongodb.driver");
+            log.setLevel(Level.SEVERE);
+            mongoClient = new MongoClient(host, port);
+            db = mongoClient.getDatabase(dbname);
+        } catch (MongoException ex) {
+            throw new FaultException("MongoException", ex);
+        }
     }
 
     @RequestResponse
-    public Value query(Value request) {
-        FindIterable<BsonDocument> iterable = null;
-        String collectionName = request.getFirstChild("collection").strValue();
+    public Value query(Value request) throws FaultException {
         Value v = Value.create();
-        MongoCollection<BsonDocument> collection = db.getCollection(collectionName, BsonDocument.class);
-        System.out.println(request.getFirstChild("query").strValue());
+        try {
+            String collectionName = request.getFirstChild("collection").strValue();
+            MongoCollection<BsonDocument> collection = db.getCollection(collectionName, BsonDocument.class);
+            BsonDocument bsonQueryDocument = BsonDocument.parse(request.getFirstChild("query").strValue());
+            prepareBsonQueryData(bsonQueryDocument, request.getFirstChild("query"));
+            FindIterable<BsonDocument> iterable = collection.find(bsonQueryDocument);
+            iterable.forEach(new Block<BsonDocument>() {
+                @Override
+                public void apply(BsonDocument t) {
+                    Value queryValue = processQueryRow(t);
+                    v.getChildren("row").add(queryValue);
+                }
+            });
 
-        BsonDocument dbObject = BsonDocument.parse(request.getFirstChild("query").strValue());
-        prepareQuery(dbObject, request);
-        iterable = collection.find(dbObject);
-
-        iterable.forEach(new Block<BsonDocument>() {
-
-            @Override
-            public void apply(BsonDocument t) {
-                Value queryValue = processQueryRow(t);
-                v.getChildren("row").add(queryValue);
-
-            }
-        });
+        } catch (MongoException ex) {
+            throw new FaultException("MongoException", ex);
+        } catch (JsonParseException ex) {
+            throw new FaultException("JsonParseException", ex);
+        }
         return v;
     }
 
     @RequestResponse
-    public void insert(Value request) {
-        String collectionName = request.getFirstChild("collection").strValue();
-        BsonDocument bsonDocument = createDocument(request.getFirstChild("document"));
+    public void insert(Value request) throws FaultException {
+        try {
 
-        db.getCollection(collectionName, BsonDocument.class).insertOne(bsonDocument);
+            String collectionName = request.getFirstChild("collection").strValue();
+            BsonDocument bsonDocument = createDocument(request.getFirstChild("document"));
+            db.getCollection(collectionName, BsonDocument.class).insertOne(bsonDocument);
+
+        } catch (MongoException ex) {
+            throw new FaultException("MongoException", ex);
+        } catch (JsonParseException ex) {
+            throw new FaultException("JsonParseException", ex);
+        }
 
     }
 
     @RequestResponse
-    public void delete(Value request) {
+    public void delete(Value request) throws FaultException {
+        try {
+            String collectionName = request.getFirstChild("collection").strValue();
+            BsonDocument bsonQueryDocument = BsonDocument.parse(request.getFirstChild("query").strValue());
+            prepareBsonQueryData(bsonQueryDocument, request.getFirstChild("query"));
+            db.getCollection(collectionName, BsonDocument.class).deleteMany(bsonQueryDocument);
+        } catch (MongoException ex) {
+            throw new FaultException("MongoException", ex);
+        } catch (JsonParseException ex) {
+            throw new FaultException("JsonParseException", ex);
+        }
+    }
+
+    @RequestResponse
+    public void update(Value request) throws FaultException {
+        try {
+            String collectionName = request.getFirstChild("collection").strValue();
+            BsonDocument bsonQueryDocument = BsonDocument.parse(request.getFirstChild("query").strValue());
+            prepareBsonQueryData(bsonQueryDocument, request.getFirstChild("query"));
+            BsonDocument bsonDocument = BsonDocument.parse(request.getFirstChild("documentUpdate").strValue());
+            
+            prepareBsonQueryData (bsonDocument,request.getFirstChild("documentUpdate")); 
+            db.getCollection(collectionName, BsonDocument.class).updateMany(bsonQueryDocument, bsonDocument);
+        } catch (MongoException ex) {
+            throw new FaultException("MongoException", ex);
+        } catch (JsonParseException ex) {
+            throw new FaultException("JsonParseException", ex);
+        }
 
     }
 
     @RequestResponse
-    public void update(Value request) {
+    public void agregate(Value request) {
 
     }
 
-    private BsonDocument prepareQuery(BsonDocument dbObject, Value request) {
-        Set<String> keySet = dbObject.keySet();
+    private BsonDocument prepareBsonQueryData(BsonDocument bsonQueryDocument, Value request) {
+        Set<String> keySet = bsonQueryDocument.keySet();
         Iterator<String> iteratorKeySet = keySet.iterator();
         while (iteratorKeySet.hasNext()) {
             String keyName = iteratorKeySet.next();
 
-            if (dbObject.isString(keyName)) {
+            if (bsonQueryDocument.isString(keyName)) {
 
-                BsonString conditionValue = dbObject.getString(keyName);
+                BsonString conditionValue = bsonQueryDocument.getString(keyName);
 
                 if (conditionValue.getValue().startsWith("$")) {
                     String conditionValueName = conditionValue.getValue().substring(1);
-                    if (request.getFirstChild("query").getFirstChild(conditionValueName).isInt()) {
-                        BsonInt32 objToInsert = new BsonInt32(request.getFirstChild("query").getFirstChild(conditionValueName).intValue());
-                        dbObject.put(keyName, objToInsert);
+                    System.out.println("Condition Value " + conditionValueName);
+                    if (request.getFirstChild(conditionValueName).isInt()) {
+                        BsonInt32 objToInsert = new BsonInt32(request.getFirstChild(conditionValueName).intValue());
+                        bsonQueryDocument.put(keyName, objToInsert);
                     }
-                    if (request.getFirstChild("query").getFirstChild(conditionValueName).isDouble()) {
-                        BsonDouble objToInsert = new BsonDouble(request.getFirstChild("query").getFirstChild(conditionValueName).doubleValue());
-                        dbObject.put(keyName, objToInsert);
+                    if (request.getFirstChild(conditionValueName).isDouble()) {
+                        BsonDouble objToInsert = new BsonDouble(request.getFirstChild(conditionValueName).doubleValue());
+                        bsonQueryDocument.put(keyName, objToInsert);
                     }
-                    if (request.getFirstChild("query").getFirstChild(conditionValueName).isString()) {
-                        BsonString objToInsert = new BsonString(request.getFirstChild("query").getFirstChild(conditionValueName).strValue());
-                        dbObject.put(keyName, objToInsert);
+                    if (request.getFirstChild(conditionValueName).isString()) {
+                        if (request.getFirstChild(conditionValueName).hasChildren("@Date")){
+                          //BsonDateTime objToInsert = new BsonDateTime(port)
+                        } 
+                        else{
+                        BsonString objToInsert = new BsonString(request.getFirstChild(conditionValueName).strValue());
+                        bsonQueryDocument.put(keyName, objToInsert);
+                        }
+                    }
+                    if (request.getFirstChild(conditionValueName).hasChildren()) {
+                        System.out.println("complex Type for" + conditionValueName);
+                        bsonQueryDocument.put(keyName, createDocument(request.getFirstChild(conditionValueName)));
                     }
                 }
 
             }
-            if (dbObject.isArray(keyName)) {
-                BsonArray array = dbObject.getArray(keySet);
+            if (bsonQueryDocument.isArray(keyName)) {
+                BsonArray array = bsonQueryDocument.getArray(keySet);
                 ListIterator<BsonValue> listIterator = array.listIterator();
 
                 while (listIterator.hasNext()) {
-                    prepareQuery(listIterator.next().asDocument(), request);
+                    prepareBsonQueryData(listIterator.next().asDocument(), request);
                 }
             }
 
-            if (dbObject.isDocument(keyName)) {
-                BsonDocument conditionObject = dbObject.getDocument(keyName);
+            if (bsonQueryDocument.isDocument(keyName)) {
+                BsonDocument conditionObject = bsonQueryDocument.getDocument(keyName);
                 Iterator iteratorMapCondition = conditionObject.keySet().iterator();
                 while (iteratorMapCondition.hasNext()) {
                     String conditionName = (String) iteratorMapCondition.next();
@@ -158,15 +211,15 @@ public class MongoDbConnector extends JavaService {
 
                             if (listValueCondition.get(counterCondition).isString()) {
                                 String conditionValue = listValueCondition.asString().getValue().substring(1);
-                                if (request.getFirstChild("query").getFirstChild(conditionValue).isInt()) {
+                                if (request.getFirstChild(conditionValue).isInt()) {
 
-                                    supportListValueCondition.add(new BsonInt32(request.getFirstChild("query").getFirstChild(conditionValue).intValue()));
+                                    supportListValueCondition.add(new BsonInt32(request.getFirstChild(conditionValue).intValue()));
                                 }
-                                if (request.getFirstChild("query").getFirstChild(conditionValue).isDouble()) {
-                                    supportListValueCondition.add(new BsonDouble(request.getFirstChild("query").getFirstChild(conditionValue).doubleValue()));
+                                if (request.getFirstChild(conditionValue).isDouble()) {
+                                    supportListValueCondition.add(new BsonDouble(request.getFirstChild(conditionValue).doubleValue()));
                                 }
-                                if (request.getFirstChild("query").getFirstChild(conditionValue).isString()) {
-                                    supportListValueCondition.add(new BsonString(request.getFirstChild("query").getFirstChild(conditionValue).strValue()));
+                                if (request.getFirstChild(conditionValue).isString()) {
+                                    supportListValueCondition.add(new BsonString(request.getFirstChild(conditionValue).strValue()));
                                 }
                             }
 
@@ -176,31 +229,34 @@ public class MongoDbConnector extends JavaService {
                         if (conditionObject.get(conditionName).isString()) {
                             String conditionValue = conditionObject.getString(conditionName).getValue().substring(1);
 
-                            if (request.getFirstChild("query").getFirstChild(conditionValue).isInt()) {
-                                conditionObject.append(conditionName, new BsonInt32(request.getFirstChild("query").getFirstChild(conditionValue).intValue()));
+                            if (request.getFirstChild(conditionValue).isInt()) {
+                                conditionObject.append(conditionName, new BsonInt32(request.getFirstChild(conditionValue).intValue()));
                             }
-                            if (request.getFirstChild("query").getFirstChild(conditionValue).isDouble()) {
-                                conditionObject.put(conditionName, new BsonDouble(request.getFirstChild("query").getFirstChild(conditionValue).doubleValue()));
+                            if (request.getFirstChild(conditionValue).isDouble()) {
+                                conditionObject.put(conditionName, new BsonDouble(request.getFirstChild(conditionValue).doubleValue()));
 
                             }
-                            if (request.getFirstChild("query").getFirstChild(conditionValue).isString()) {
-                                conditionObject.put(conditionName, new BsonString (request.getFirstChild("query").getFirstChild(conditionValue).strValue()));
+                            if (request.getFirstChild(conditionValue).isString()) {
+                                conditionObject.put(conditionName, new BsonString(request.getFirstChild(conditionValue).strValue()));
+                            }
+                            
+                            if (request.getFirstChild(conditionValue).hasChildren()) {
+                                System.out.println("complex Type for" + conditionValue);
+                                conditionObject.put(keyName, createDocument(request.getFirstChild(conditionValue)));
                             }
                         }
                     }
                 }
-       
-                dbObject.put(keyName, conditionObject);
+
+                bsonQueryDocument.put(keyName, conditionObject);
             }
         }
-        return dbObject;
+        return bsonQueryDocument;
 
     }
 
     private BsonDocument createDocument(Value request) {
-
         BsonDocument bsonDocument = new BsonDocument();
-
         Map<String, ValueVector> children = request.children();
         Set<Map.Entry<String, ValueVector>> childrenSet = children.entrySet();
         Iterator<Map.Entry<String, ValueVector>> iterator = childrenSet.iterator();
@@ -253,7 +309,6 @@ public class MongoDbConnector extends JavaService {
     }
 
     private Value processQueryRow(BsonDocument document) {
-
         Value v = Value.create();
         Set<String> keySet = document.keySet();
         Iterator<String> iteratorKeySet = keySet.iterator();

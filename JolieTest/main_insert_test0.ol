@@ -8,19 +8,15 @@ connectValue.dbname ="prova";
 connectValue.port = 27017;
 connect@MongoDB(connectValue)();
 q.collection = "prove";
-q.query = "{nome: \"$name1\"}";
-q.query.name1 = "Luca";
-q.documentUpdate = "{$inc:{address:\"$address\"}}";
-q.documentUpdate.address.city= "London";
-q.documentUpdate.address.street= "Cherry St";
-q.documentUpdate.address.streetNumber= 42;
+q.document.nome = "Luca";
+q.document.cognome = "Rossi";
+q.document.eta = 20;
+q.document.spesa[0].ammount = 20.12;
+q.document.spesa[1].ammount = 21.12;
+q.document.spesa[2].ammount = 30.12;
 valueToPrettyString@StringUtils (q)(s);
 println@Console("q>>>>"+s)();
-scope (updateScope){
-     install (default=>  valueToPrettyString@StringUtils (updateScope)(s);
-     println@Console("updateScope>>>>"+s)());
-    update@MongoDB(q)(responseq)
-};
+insert@MongoDB(q)(responseq);
 valueToPrettyString@StringUtils (responseq)(s);
 println@Console("responseq>>>>"+s)()
 }
