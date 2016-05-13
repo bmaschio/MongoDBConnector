@@ -23,6 +23,7 @@ public class Test {
         connectValue.getNewChild("host").add(Value.create("localhost"));
         connectValue.getNewChild("dbname").add(Value.create("prova"));
         connectValue.getNewChild("port").add(Value.create(27017));
+        connectValue.getNewChild("jsonStringDebug").add(Value.create(Boolean.TRUE));
         mongoDbConnector.connect(connectValue);
 
        
@@ -39,11 +40,15 @@ public class Test {
  //       mongoDbConnector.insert(InsertValue);
  
         Value queryValue = Value.create();
-        queryValue.getNewChild("collection").add(Value.create("prove"));
-        queryValue.getNewChild("query").add(Value.create("eta:{ $gt: 10}}"));
+        queryValue.getNewChild("collection").add(Value.create("CustomerSales"));
+        
+        
+       queryValue.getChildren("filter").get(0).add(Value.create("{$group:{ _id : '$name', total:{$sum : 1}}}"));
+//
        // queryValue.getFirstChild("query").getChildren("ammount").add(Value.create(30.0));
 
-        mongoDbConnector.query(queryValue);
+         Value v = mongoDbConnector.aggregate(queryValue);
+         System.out.println();
             
     }
     

@@ -7,10 +7,10 @@ connectValue.host = "localhost";
 connectValue.dbname ="prova";
 connectValue.port = 27017;
 connect@MongoDB(connectValue)();
-q.collection = "prove";
+q.collection = "CustomerSales";
 /*q.query = "{\"spesa.ammount\":{$gt:\"$ammount\"}}";*/
-q.query = "{\"spesa.ammount\":{$lt:\"$eta\"}}";
-q.query.eta = 30.12;
+q.filter = "{'age':{$gt:'$age'}}";
+q.filter.age = 30;
 
 valueToPrettyString@StringUtils (q)(s);
 println@Console("q>>>>"+s)();

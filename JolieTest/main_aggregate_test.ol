@@ -21,16 +21,15 @@ init{
 main {
 
 q.collection = "CustomerSales";
-q.filter = "{name: '$name1'}";
-q.filter.name1 = "Balint";
-q.documentUpdate = "{$set:{age:'$age'}}";
-q.documentUpdate.age= 70;
+q.filter = "{$group:{ _id : '$name', total:{$sum : 1}}}";
+
+
 valueToPrettyString@StringUtils (q)(s);
 println@Console("q>>>>"+s)();
-scope (updateScope){
-     install (default=>  valueToPrettyString@StringUtils (updateScope)(s);
+scope (aggregateScope){
+     install (default=>  valueToPrettyString@StringUtils (aggregateScope)(s);
      println@Console("updateScope>>>>"+s)());
-    update@MongoDB(q)(responseq)
+     aggregate@MongoDB(q)(responseq)
 };
 valueToPrettyString@StringUtils (responseq)(s);
 println@Console("responseq>>>>"+s)()
