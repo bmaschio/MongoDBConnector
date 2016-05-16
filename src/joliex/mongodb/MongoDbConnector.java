@@ -34,6 +34,7 @@ import org.bson.BsonArray;
 import org.bson.BsonDateTime;
 import org.bson.BsonDouble;
 import org.bson.BsonInt32;
+import org.bson.BsonInt64;
 import org.bson.BsonObjectId;
 import org.bson.BsonString;
 import org.bson.BsonValue;
@@ -61,6 +62,7 @@ public class MongoDbConnector extends JavaService {
     private MongoClientOptions mongoClientOptions;
     private static Logger log;
     private static boolean jsonDebuger;
+    private static boolean is64;
 
     @RequestResponse
     public void connect(Value request) throws FaultException {
@@ -72,6 +74,11 @@ public class MongoDbConnector extends JavaService {
             log.setLevel(Level.OFF);
             if (request.hasChildren("jsonStringDebug")) {
                 jsonDebuger = request.getFirstChild("jsonStringDebug").boolValue();
+            }
+            if (System.getProperty("os.arch").contains("64")) {
+                is64 = true;
+            } else {
+                is64 = false;
             }
             mongoClient = new MongoClient(host, port);
             db = mongoClient.getDatabase(dbname);
@@ -103,13 +110,13 @@ public class MongoDbConnector extends JavaService {
                     v.getChildren("document").add(queryValue);
                 }
             });
-          
+
         } catch (MongoException ex) {
             throw new FaultException("MongoException", ex);
         } catch (JsonParseException ex) {
             throw new FaultException("JsonParseException", ex);
         }
-        
+
         return v;
     }
 
@@ -203,8 +210,14 @@ public class MongoDbConnector extends JavaService {
                     String conditionValueName = conditionValue.getValue().substring(1);
 
                     if (request.getFirstChild(conditionValueName).isInt()) {
-                        BsonInt32 objToInsert = new BsonInt32(request.getFirstChild(conditionValueName).intValue());
-                        bsonQueryDocument.put(keyName, objToInsert);
+
+                        if (is64) {
+                            BsonInt64 objToInsert = new BsonInt64(request.getFirstChild(conditionValueName).intValue());
+                            bsonQueryDocument.put(keyName, objToInsert);
+                        } else {
+                            BsonInt32 objToInsert = new BsonInt32(request.getFirstChild(conditionValueName).intValue());
+                            bsonQueryDocument.put(keyName, objToInsert);
+                        }
                     }
                     if (request.getFirstChild(conditionValueName).isDouble()) {
                         BsonDouble objToInsert = new BsonDouble(request.getFirstChild(conditionValueName).doubleValue());
@@ -248,8 +261,11 @@ public class MongoDbConnector extends JavaService {
                             if (listValueCondition.get(counterCondition).isString()) {
                                 String conditionValue = listValueCondition.asString().getValue().substring(1);
                                 if (request.getFirstChild(conditionValue).isInt()) {
-
-                                    supportListValueCondition.add(new BsonInt32(request.getFirstChild(conditionValue).intValue()));
+                                    if (is64) {
+                                        supportListValueCondition.add(new BsonInt64(request.getFirstChild(conditionValue).intValue()));
+                                    } else {
+                                        supportListValueCondition.add(new BsonInt32(request.getFirstChild(conditionValue).intValue()));
+                                    }
                                 }
                                 if (request.getFirstChild(conditionValue).isDouble()) {
                                     supportListValueCondition.add(new BsonDouble(request.getFirstChild(conditionValue).doubleValue()));
@@ -266,7 +282,11 @@ public class MongoDbConnector extends JavaService {
                             String conditionValue = conditionObject.getString(conditionName).getValue().substring(1);
 
                             if (request.getFirstChild(conditionValue).isInt()) {
-                                conditionObject.append(conditionName, new BsonInt32(request.getFirstChild(conditionValue).intValue()));
+                                if (is64) {
+                                    conditionObject.append(conditionName, new BsonInt64(request.getFirstChild(conditionValue).intValue()));
+                                } else {
+                                    conditionObject.append(conditionName, new BsonInt32(request.getFirstChild(conditionValue).intValue()));
+                                }
                             }
                             if (request.getFirstChild(conditionValue).isDouble()) {
                                 conditionObject.put(conditionName, new BsonDouble(request.getFirstChild(conditionValue).doubleValue()));
@@ -309,12 +329,23 @@ public class MongoDbConnector extends JavaService {
 
                     }
                     if (valueVector.get(counterValueVector).isInt()) {
-                        BsonInt32 bsonObj = new BsonInt32(valueVector.get(counterValueVector).intValue());
-                        if (valueVector.size() == 1) {
-                            bsonDocument.append(entry.getKey(), bsonObj);
+                        if (is64) {
+                            BsonInt64 bsonObj = new BsonInt64(valueVector.get(counterValueVector).intValue());
+                            if (valueVector.size() == 1) {
+                                bsonDocument.append(entry.getKey(), bsonObj);
+                            } else {
+                                bsonArray.add(counterValueVector, bsonObj);
+                            }
+
                         } else {
-                            bsonArray.add(counterValueVector, bsonObj);
+                            BsonInt32 bsonObj = new BsonInt32(valueVector.get(counterValueVector).intValue());
+                            if (valueVector.size() == 1) {
+                                bsonDocument.append(entry.getKey(), bsonObj);
+                            } else {
+                                bsonArray.add(counterValueVector, bsonObj);
+                            }
                         }
+
                     }
                     if (valueVector.get(counterValueVector).isDouble()) {
                         BsonDouble bsonObj = new BsonDouble(valueVector.get(counterValueVector).doubleValue());
@@ -355,6 +386,8 @@ public class MongoDbConnector extends JavaService {
                 v.getChildren(nameField).add(Value.create(document.getString(nameField).getValue()));
             } else if (document.isInt32(nameField)) {
                 v.getChildren(nameField).add(Value.create(document.getInt32(nameField).getValue()));
+            } else if (document.isInt64(nameField)) {
+                v.getChildren(nameField).add(Value.create(document.getInt32(nameField).getValue()));
             } else if (document.isDouble(nameField)) {
                 v.getChildren(nameField).add(Value.create(document.getDouble(nameField).getValue()));
             } else if (document.isDateTime(nameField)) {
@@ -375,6 +408,9 @@ public class MongoDbConnector extends JavaService {
                         v.getChildren(nameField).add(Value.create(bsonObj.getValue()));
                     } else if (obj instanceof BsonInt32) {
                         BsonInt32 bsonObj = (BsonInt32) obj;
+                        v.getChildren(nameField).add(Value.create(bsonObj.getValue()));
+                    } else if (obj instanceof BsonInt64) {
+                        BsonInt64 bsonObj = (BsonInt64) obj;
                         v.getChildren(nameField).add(Value.create(bsonObj.getValue()));
                     } else if (obj instanceof BsonDouble) {
                         BsonDouble bsonObj = (BsonDouble) obj;
@@ -400,9 +436,10 @@ public class MongoDbConnector extends JavaService {
         return v;
 
     }
-private void printlnJson (String level , BsonDocument bsonDocument ){
-    if (jsonDebuger){
-        System.out.println(level +" "+ bsonDocument.toJson());
+
+    private void printlnJson(String level, BsonDocument bsonDocument) {
+        if (jsonDebuger) {
+            System.out.println(level + " " + bsonDocument.toJson());
+        }
     }
-}
 }
