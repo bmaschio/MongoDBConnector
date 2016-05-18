@@ -10,7 +10,7 @@ connect@MongoDB(connectValue)();
 q.collection = "CustomerSales";
 /*q.query = "{\"spesa.ammount\":{$gt:\"$ammount\"}}";*/
 q.filter = "{'age':{$gt:'$age'}}";
-q.filter.age = 30;
+q.filter.age = 20;
 
 valueToPrettyString@StringUtils (q)(s);
 println@Console("q>>>>"+s)();

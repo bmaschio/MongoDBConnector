@@ -172,7 +172,7 @@ public class MongoDbConnector extends JavaService {
     }
 
     @RequestResponse
-    public Value aggregate(Value request) {
+    public Value aggregate(Value request) throws FaultException {
         Value v = Value.create();
         ArrayList<BsonDocument> bsonAggreagationDocuments = new ArrayList<>();
         String collectionName = request.getFirstChild("collection").strValue();
@@ -196,7 +196,7 @@ public class MongoDbConnector extends JavaService {
         return v;
     }
 
-    private BsonDocument prepareBsonQueryData(BsonDocument bsonQueryDocument, Value request) {
+    private BsonDocument prepareBsonQueryData(BsonDocument bsonQueryDocument, Value request) throws FaultException {
         Set<String> keySet = bsonQueryDocument.keySet();
         Iterator<String> iteratorKeySet = keySet.iterator();
         while (iteratorKeySet.hasNext()) {
@@ -224,16 +224,21 @@ public class MongoDbConnector extends JavaService {
                         bsonQueryDocument.put(keyName, objToInsert);
                     }
                     if (request.getFirstChild(conditionValueName).isString()) {
-                        if (request.getFirstChild(conditionValueName).hasChildren("@Date")) {
-                            //BsonDateTime objToInsert = new BsonDateTime(port)
-                        } else {
-                            BsonString objToInsert = new BsonString(request.getFirstChild(conditionValueName).strValue());
-                            bsonQueryDocument.put(keyName, objToInsert);
-                        }
+
+                        BsonString objToInsert = new BsonString(request.getFirstChild(conditionValueName).strValue());
+                        bsonQueryDocument.put(keyName, objToInsert);
+
                     }
                     if (request.getFirstChild(conditionValueName).hasChildren()) {
+                        if (request.getFirstChild(conditionValueName).hasChildren("@type")) {
+                            if (request.getFirstChild(conditionValueName).getFirstChild("@type").strValue().equals("Date")) {
+                                BsonDateTime objToInsert = new BsonDateTime(request.getFirstChild(conditionValueName).longValue());
+                                bsonQueryDocument.put(keyName, objToInsert);
 
-                        bsonQueryDocument.put(keyName, createDocument(request.getFirstChild(conditionValueName)));
+                            }
+                        } else {
+                            bsonQueryDocument.put(keyName, createDocument(request.getFirstChild(conditionValueName)));
+                        }
                     }
                 }
 
@@ -311,7 +316,7 @@ public class MongoDbConnector extends JavaService {
 
     }
 
-    private BsonDocument createDocument(Value request) {
+    private BsonDocument createDocument(Value request) throws FaultException {
         BsonDocument bsonDocument = new BsonDocument();
         Map<String, ValueVector> children = request.children();
         Set<Map.Entry<String, ValueVector>> childrenSet = children.entrySet();
@@ -324,10 +329,24 @@ public class MongoDbConnector extends JavaService {
                 for (int counterValueVector = 0; counterValueVector < valueVector.size(); counterValueVector++) {
 
                     if (valueVector.get(counterValueVector).hasChildren()) {
+                        if (valueVector.get(counterValueVector).hasChildren("@type")) {
+                            if (valueVector.get(counterValueVector).getFirstChild("@type").strValue().equals("Date")) {
+                                BsonDateTime bsonObj = new BsonDateTime(valueVector.get(counterValueVector).longValue());
+                                if (valueVector.size() == 1) {
+                                    bsonDocument.append(entry.getKey(), bsonObj);
+                                } else {
+                                    bsonArray.add(counterValueVector, bsonObj);
+                                }
 
-                        bsonArray.add(counterValueVector, createDocument(valueVector.get(counterValueVector)));
+                            } else {
+                                throw new FaultException("ComplexTypeNotSupported");
+                            }
 
+                        } else {
+                            bsonArray.add(counterValueVector, createDocument(valueVector.get(counterValueVector)));
+                        }
                     }
+
                     if (valueVector.get(counterValueVector).isInt()) {
                         if (is64) {
                             BsonInt64 bsonObj = new BsonInt64(valueVector.get(counterValueVector).intValue());
@@ -363,10 +382,12 @@ public class MongoDbConnector extends JavaService {
                             bsonArray.add(counterValueVector, bsonObj);
                         }
                     }
+
                 }
                 if (!bsonArray.isEmpty()) {
                     bsonDocument.append(entry.getKey(), bsonArray);
                 }
+
             } else {
                 System.out.println("Empty");
             }
@@ -392,7 +413,9 @@ public class MongoDbConnector extends JavaService {
                 v.getChildren(nameField).add(Value.create(document.getDouble(nameField).getValue()));
             } else if (document.isDateTime(nameField)) {
                 Date date = new Date(document.getDateTime(nameField).getValue());
-                v.getChildren(nameField).add(Value.create(date.toString()));
+                v.getChildren(nameField).add(Value.create(date.getTime()));
+                v.getFirstChild(nameField).getNewChild("@type").add(Value.create("Date"));
+                v.getFirstChild(nameField).getFirstChild("@type").getNewChild("DateStr").add(Value.create(date.toString()));
             } else if (document.isDocument(nameField)) {
                 v.getChildren(nameField).add(processQueryRow(document.getDocument(nameField)));
             } else if (document.isArray(nameField)) {
@@ -417,7 +440,10 @@ public class MongoDbConnector extends JavaService {
                         v.getChildren(nameField).add(Value.create(bsonObj.getValue()));
                     } else if (obj instanceof BsonDateTime) {
                         BsonDateTime date = BsonDateTime.class.cast(obj);
-                        v.getChildren(nameField).add(Value.create(date.toString()));
+                        Value objValue = Value.create(date.getValue());
+                        objValue.getNewChild("@type").add(Value.create("Date"));
+                        objValue.getFirstChild("@type").getNewChild("DateStr").add(Value.create(date.toString()));
+                        v.getChildren(nameField).add(objValue);
                     } else if (obj instanceof BsonDocument) {
                         BsonDocument bsonObj = (BsonDocument) obj;
                         v.getChildren(nameField).add(processQueryRow(bsonObj));

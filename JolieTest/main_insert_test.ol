@@ -32,7 +32,10 @@ with (q.document){
       .age = 28;
       with (.purchase){
         .ammount = 30.12;
-        .date = "12.03.2016"
+        .date.("@type")="Date";
+        .date= long(170000);
+        .location.street= "Mongo road";
+          .location.number= 2
       }
     };
 valueToPrettyString@StringUtils (q)(s);
