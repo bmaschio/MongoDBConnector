@@ -15,6 +15,6 @@ q.query.nome = "Luca";
 valueToPrettyString@StringUtils (q)(s);
 println@Console("q>>>>"+s)();
 delete@MongoDB(q)(responseq);
-valueToPrettyString@StringUtils (responseq)(s);
+valueToPrettyString@StringUtils (responseq)(s);dasdasda
 println@Console("responseq>>>>"+s)()
 }

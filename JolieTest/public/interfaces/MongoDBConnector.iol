@@ -2,6 +2,7 @@ type ConnectRequest:void{
   .host : string
   .dbname : string
   .port :int
+  .timeZone:string
   .jsonStringDebug?:bool
 }
 

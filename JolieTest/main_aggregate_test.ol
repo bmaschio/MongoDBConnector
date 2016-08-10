@@ -11,6 +11,7 @@ init{
           .host = "localhost";
           .dbname ="prova";
           .port = 27017;
+
           .jsonStringDebug = true
         };
       connect@MongoDB(connectValue)()
@@ -32,5 +33,5 @@ scope (aggregateScope){
      aggregate@MongoDB(q)(responseq)
 };
 valueToPrettyString@StringUtils (responseq)(s);
-println@Console("responseq>>>>"+s)()
+println@Console("responseq>>>>"+s)()sfdsf
 }

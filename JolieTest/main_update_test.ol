@@ -34,4 +34,5 @@ scope (updateScope){
 };
 valueToPrettyString@StringUtils (responseq)(s);
 println@Console("responseq>>>>"+s)()
+/*issue.range = helpers.rangeFromLineNumber editor, lineStart, colStart*/
 }

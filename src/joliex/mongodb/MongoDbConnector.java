@@ -26,6 +26,7 @@ import java.util.List;
 import java.util.ListIterator;
 import java.util.Map;
 import java.util.Set;
+import java.util.TimeZone;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import jolie.runtime.FaultException;
@@ -39,6 +40,7 @@ import org.bson.BsonObjectId;
 import org.bson.BsonString;
 import org.bson.BsonValue;
 import org.bson.json.JsonParseException;
+import org.joda.time.DateTimeZone;
 
 /**
  *
@@ -47,8 +49,8 @@ import org.bson.json.JsonParseException;
 @CanUseJars({
     "mongo-java-driver-3.2.2.jar",
     "mongodb-driver-3.2.2.jar",
-    "mongodb-driver-core-3.2.2.jar"
-
+    "mongodb-driver-core-3.2.2.jar",
+    "joda-time-2.4.jar"    
 })
 public class MongoDbConnector extends JavaService {
 
@@ -57,12 +59,14 @@ public class MongoDbConnector extends JavaService {
     private String dbname;
     private String host;
     private int port;
+    private String timeZone;
     private static MongoClient mongoClient;
     private static MongoDatabase db;
     private MongoClientOptions mongoClientOptions;
     private static Logger log;
     private static boolean jsonDebuger;
     private static boolean is64;
+    private DateTimeZone zone ;
 
     @RequestResponse
     public void connect(Value request) throws FaultException {
@@ -70,6 +74,7 @@ public class MongoDbConnector extends JavaService {
             host = request.getFirstChild("host").strValue();
             port = request.getFirstChild("port").intValue();
             dbname = request.getFirstChild("dbname").strValue();
+            timeZone = request.getFirstChild("timeZone").strValue();
             log = Logger.getLogger("org.mongodb.driver");
             log.setLevel(Level.OFF);
             if (request.hasChildren("jsonStringDebug")) {
@@ -82,6 +87,9 @@ public class MongoDbConnector extends JavaService {
             }
             mongoClient = new MongoClient(host, port);
             db = mongoClient.getDatabase(dbname);
+            zone = DateTimeZone.forID(timeZone);
+            DateTimeZone.setDefault(zone);
+           
         } catch (MongoException ex) {
             throw new FaultException("MongoException", ex);
         }
@@ -99,6 +107,7 @@ public class MongoDbConnector extends JavaService {
                 prepareBsonQueryData(bsonQueryDocument, request.getFirstChild("filter"));
                 printlnJson("Query filter", bsonQueryDocument);
                 iterable = collection.find(bsonQueryDocument);
+                
             } else {
                 iterable = collection.find();
             }
@@ -230,13 +239,18 @@ public class MongoDbConnector extends JavaService {
 
                     }
                     if (request.getFirstChild(conditionValueName).hasChildren()) {
+
                         if (request.getFirstChild(conditionValueName).hasChildren("@type")) {
+                            System.out.println("Has types" + conditionValueName);
                             if (request.getFirstChild(conditionValueName).getFirstChild("@type").strValue().equals("Date")) {
+                                
                                 BsonDateTime objToInsert = new BsonDateTime(request.getFirstChild(conditionValueName).longValue());
+                                System.out.println(objToInsert.toString());
                                 bsonQueryDocument.put(keyName, objToInsert);
 
                             }
                         } else {
+                            System.out.println("Has not type types" + conditionValueName);
                             bsonQueryDocument.put(keyName, createDocument(request.getFirstChild(conditionValueName)));
                         }
                     }
@@ -302,8 +316,18 @@ public class MongoDbConnector extends JavaService {
                             }
 
                             if (request.getFirstChild(conditionValue).hasChildren()) {
+                                if (request.getFirstChild(conditionValue).hasChildren("@type")) {
+                                    System.out.println("Has types" + conditionValue);
+                                    if (request.getFirstChild(conditionValue).getFirstChild("@type").strValue().equals("Date")) {
+                                       
+                                        BsonDateTime objToInsert = new BsonDateTime(request.getFirstChild(conditionValue).longValue());
+                                         System.out.println(objToInsert.toString());
+                                        conditionObject.put(conditionName, objToInsert);
+                                    }
+                                } else {
 
-                                conditionObject.put(keyName, createDocument(request.getFirstChild(conditionValue)));
+                                    conditionObject.put(keyName, createDocument(request.getFirstChild(conditionValue)));
+                                }
                             }
                         }
                     }
@@ -331,6 +355,7 @@ public class MongoDbConnector extends JavaService {
                     if (valueVector.get(counterValueVector).hasChildren()) {
                         if (valueVector.get(counterValueVector).hasChildren("@type")) {
                             if (valueVector.get(counterValueVector).getFirstChild("@type").strValue().equals("Date")) {
+                              DateTimeZone.setDefault(zone);
                                 BsonDateTime bsonObj = new BsonDateTime(valueVector.get(counterValueVector).longValue());
                                 if (valueVector.size() == 1) {
                                     bsonDocument.append(entry.getKey(), bsonObj);
