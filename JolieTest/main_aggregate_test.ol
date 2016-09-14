@@ -33,5 +33,5 @@ scope (aggregateScope){
      aggregate@MongoDB(q)(responseq)
 };
 valueToPrettyString@StringUtils (responseq)(s);
-println@Console("responseq>>>>"+s)()sfdsf
+println@Console("responseq>>>>"+s)()
 }

@@ -4,6 +4,7 @@ type ConnectRequest:void{
   .port :int
   .timeZone:string
   .jsonStringDebug?:bool
+  .logStreamDebug?:bool
 }
 
 type ConnectResponse: void
@@ -11,6 +12,8 @@ type ConnectResponse: void
 type QueryRequest:void{
    .collection: string
    .filter?:undefined
+   .sort?:undefined
+   .limit?: int
 }
 
 type QueryResponse:void{
