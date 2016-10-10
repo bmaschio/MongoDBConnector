@@ -5,13 +5,15 @@ include "time.iol"
 
 init{
   scope (ConnectionMongoDbScope){
-    install (default => valueToPrettyString@StringUtils(ConnectionMongoDbScope)();
+    install (defaulta => valueToPrettyString@StringUtils(ConnectionMongoDbScope)();
              println@Console(s)()
              );
     with (connectValue){
         .host = "localhost";
         .dbname ="prova";
-        .port = 27017
+        .port = 27017;
+        .timeZone = "Europe/Berlin";
+        .jsonStringDebug = true
       };
     connect@MongoDB(connectValue)()
 }
@@ -20,10 +22,10 @@ init{
 
 main {
 scope (InsertMongoTest){
-  install (default => valueToPrettyString@StringUtils(ConnectionMongoDbScope)();
+  install (default => valueToPrettyString@StringUtils(InsertMongoTest)(s);
            println@Console(s)());
 getCurrentTimeMillis@Time()(currentTime);
-for (counter = 0, counter<10 , counter++ ){
+for (counter = 0, counter<1 , counter++ ){
     getCurrentTimeMillis@Time()(currentTime);
     q.collection = "CustomerSales";
     with (q.document){
@@ -31,12 +33,18 @@ for (counter = 0, counter<10 , counter++ ){
           .surname = "Maschio";
           .code = "LALA01";
           .age = 28;
-          with (.purchase){
-            .ammount = 30.12;
-            .date.("@type")="Date";
-            .date= currentTime;
-            .location.street= "Mongo road";
-              .location.number= 2
+          with (.poligon){
+             .("@type")="Polygon";
+             .coordinates[0].log= 65.4;
+             .coordinates[0].lat= 65.4;
+             .coordinates[1].log= 67.4;
+             .coordinates[1].lat= 65.4;
+             .coordinates[2].log= 65.4;
+             .coordinates[2].lat= 66.4
+          };
+          .date = L123124321432;
+          with (.date){
+            .("@type")="Date"
           }
         };
     valueToPrettyString@StringUtils (q)(s);
@@ -45,8 +53,8 @@ for (counter = 0, counter<10 , counter++ ){
     valueToPrettyString@StringUtils (responseq)(s);
     println@Console("responseq>>>>"+s)();
 
-    undef(q);
-    sleep@Time(10000)()
+    undef(q)
+
 }
 }
 
