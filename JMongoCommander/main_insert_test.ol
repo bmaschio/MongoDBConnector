@@ -3,40 +3,41 @@ include "./public/interfaces/MongoDbConnector.iol"
 include "string_utils.iol"
 include "time.iol"
 
-init{
-  scope (ConnectionMongoDbScope){
-    install (defaulta => valueToPrettyString@StringUtils(ConnectionMongoDbScope)();
-             println@Console(s)()
-             );
-    with (connectValue){
-        .host = "localhost";
-        .dbname ="prova";
-        .port = 27017;
-        .timeZone = "Europe/Berlin";
-        .jsonStringDebug = true
-      };
-    connect@MongoDB(connectValue)()
-}
-}
-
-
 main {
 scope (InsertMongoTest){
   install (default => valueToPrettyString@StringUtils(InsertMongoTest)(s);
            println@Console(s)());
            connectValue.host = "localhost";
-           connectValue.dbname ="prova";
+           connectValue.dbname ="admin";
+           connectValue.username = "myUserAdmin";
+           connectValue.password = "abc123";
            connectValue.port = 27017;
            connectValue.jsonStringDebug = true;
            connectValue.timeZone = "Europe/Berlin";
            connectValue.logStreamDebug = true;
+           valueToPrettyString@StringUtils(connectValue)(s);
+           println@Console(s)();
            connect@MongoDB(connectValue)();
           listCollection@MongoDB ()(response);
           valueToPrettyString@StringUtils(response)(s);
           println@Console(s)();
-         getDBReadConcern@MongoDB()(response);
-         valueToPrettyString@StringUtils(response)(s);
-                  println@Console(s)()
+
+          with (requestRole){
+               .roleName= "MyFirstRole";
+               with(.privilages[0]){
+                 .resource.cluster =true;
+                 .actions[0]= "addShard"
+               };
+               with(.privilages[1]){
+                 .resource.db ="User";
+                 .resource.collection ="";
+                 .actions[0]= "find";
+                 .actions[1]= "insert"
+                 }
+
+               };
+        createRole@MongoDB (requestRole)()
+
 }
 
 }

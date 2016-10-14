@@ -2,6 +2,8 @@ type ConnectRequest:void{
   .host : string
   .dbname : string
   .port :int
+  .password:string
+  .username:string
   .timeZone:string
   .jsonStringDebug?:bool
   .logStreamDebug?:bool
@@ -60,14 +62,15 @@ type ListCollectionResponse:void{
 }
 interface MongoDBInterface {
   RequestResponse:
-  connect (ConnectRequest)(ConnectResponse) throws MongoException ,
+  connect (ConnectRequest)(ConnectResponse) throws MongoException  MongoConnectionError,
   query   (QueryRequest)(QueryResponse)   throws MongoException JsonParseException ,
   insert  (InsertRequest)(InsertResponse)   throws MongoException JsonParseException ,
   update  (UpdateRequest)(UpdateResponse)   throws MongoException JsonParseException ,
   delete  (DeleteRequest)(DeleteResponse)   throws MongoException JsonParseException ,
   aggregate (AggregateRequest)(AggregateResponse) throws MongoException JsonParseException,
   listCollection(ListCollectionRequest)(ListCollectionResponse) throws MongoException JsonParseException,
-  getDBReadConcern(undefined)(undefined)
+  getDBReadConcern(undefined)(undefined),
+  createRole(undefined)(undefined)
 }
 
 

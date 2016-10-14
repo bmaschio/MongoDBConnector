@@ -5,13 +5,17 @@
  */
 package joliex.mongodb;
 
+import com.mongodb.BasicDBList;
 import com.mongodb.BasicDBObject;
 import com.mongodb.Block;
+import com.mongodb.DBObject;
 import jolie.runtime.JavaService;
 import com.mongodb.MongoClient;
 import com.mongodb.MongoClientOptions;
+import com.mongodb.MongoCredential;
 import com.mongodb.MongoException;
 import com.mongodb.ReadConcern;
+import com.mongodb.ServerAddress;
 import com.mongodb.client.AggregateIterable;
 
 import com.mongodb.client.FindIterable;
@@ -26,6 +30,7 @@ import jolie.runtime.embedding.RequestResponse;
 import org.bson.BsonDocument;
 import java.util.Date;
 import java.util.Iterator;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.ListIterator;
 import java.util.Map;
@@ -45,6 +50,8 @@ import org.bson.BsonInt64;
 import org.bson.BsonObjectId;
 import org.bson.BsonString;
 import org.bson.BsonValue;
+import org.bson.Document;
+import org.bson.conversions.Bson;
 import org.bson.json.JsonParseException;
 import org.joda.time.DateTimeZone;
 
@@ -83,6 +90,8 @@ public class MongoDbConnector extends JavaService {
             port = request.getFirstChild("port").intValue();
             dbname = request.getFirstChild("dbname").strValue();
             timeZone = request.getFirstChild("timeZone").strValue();
+            password = request.getFirstChild("password").strValue();
+            username = request.getFirstChild("username").strValue();
             log = Logger.getLogger("org.mongodb.driver");
             log.setLevel(Level.OFF);
             if (request.hasChildren("jsonStringDebug")) {
@@ -97,13 +106,17 @@ public class MongoDbConnector extends JavaService {
             } else {
                 is64 = false;
             }
-            mongoClient = new MongoClient(host, port);
+            ServerAddress serverAddress = new ServerAddress(host,port);
+            ArrayList<MongoCredential> credentials = new ArrayList();
+            MongoCredential credential = MongoCredential.createCredential(username, dbname, password.toCharArray());
+            credentials.add(credential);
+            mongoClient = new MongoClient (serverAddress, credentials);
             db = mongoClient.getDatabase(dbname);
             zone = DateTimeZone.forID(timeZone);
             DateTimeZone.setDefault(zone);
 
         } catch (MongoException ex) {
-            throw new FaultException("MongoException", ex);
+            throw new FaultException("LoginConnection", ex);
         }
     }
 
@@ -250,9 +263,77 @@ public class MongoDbConnector extends JavaService {
         while (iteratorListCollectionNames.hasNext()){
            String collection =iteratorListCollectionNames.next();
            v.getChildren("collection").get(counterCollection).add(Value.create(collection));
+           counterCollection++;
         }
         return v;
     }
+    
+    @RequestResponse
+    public Value listDB(){
+        Value v = Value.create();
+        MongoIterable<String> databaseNames = mongoClient.listDatabaseNames();
+        MongoCursor<String> databaseNamesIterator = databaseNames.iterator();
+         int counterDatabase = 0;
+        while (databaseNamesIterator.hasNext()){
+          v.getChildren("collection").get(counterDatabase).add(Value.create(databaseNamesIterator.next()));
+          
+        }
+        return v;
+    }
+    
+    @RequestResponse
+    public Value createRole(Value request){
+        
+      Value v = Value.create();  
+      DBObject createRoleObj = new BasicDBObject();
+      createRoleObj.put("createRole",request.getFirstChild("roleName").strValue());
+        ArrayList<DBObject> privilages = new ArrayList();
+      for (int counterPrivilages =0; counterPrivilages< request.getChildren("privilages").size(); counterPrivilages++){
+          DBObject privilageObj = new BasicDBObject();
+          
+           DBObject resourceObj = new BasicDBObject();
+           Map<String, ValueVector> resourceMap = request.getChildren("privilages").get(counterPrivilages).getFirstChild("resource").children();
+           Set<String> keyResource = resourceMap.keySet();
+           Iterator<String> keyResourceIterator = keyResource.iterator();
+           while (keyResourceIterator.hasNext()){
+             String resourceName =  keyResourceIterator.next();
+             
+              ValueVector resourceData = resourceMap.get(resourceName);
+              if (resourceData.get(0).isBool()){
+                  resourceObj.put(resourceName,resourceData.get(0).boolValue() );
+              }
+              if (resourceData.get(0).isString()){
+                 resourceObj.put(resourceName,resourceData.get(0).strValue());
+              }
+           }
+          
+          
+          privilageObj.put ("resource" , resourceObj);
+          ArrayList<String> actionsObject = new ArrayList();
+          for (int counterActions =0; counterActions < request.getChildren("privilages").get(counterPrivilages).getChildren("actions").size(); counterActions++){
+            actionsObject.add(request.getChildren("privilages").get(counterPrivilages).getChildren("actions").get(counterActions).strValue());
+                     
+          }
+          privilageObj.put ("actions" ,  actionsObject);
+          privilages.add(privilageObj);
+      }
+       createRoleObj.put("privileges",  privilages); 
+       
+       
+       System.out.println(createRoleObj.toString());
+       DBObject roleObj = new BasicDBObject();
+       roleObj.put("role", "read");
+       roleObj.put("db", "admin");
+       ArrayList<DBObject> rolesObj = new  ArrayList();
+       rolesObj.add(roleObj); 
+       createRoleObj.put("roles",  rolesObj); 
+       Document a = db.runCommand((Bson) createRoleObj);
+       System.out.println(a.toJson().toString());
+       return v;
+        
+    }
+    
+    
     public Value getDBReadConcern(){
         ReadConcern readConcern = db.getReadConcern();
         return (processQueryRow(readConcern.asDocument()));
