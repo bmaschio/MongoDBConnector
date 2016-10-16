@@ -1,0 +1,78 @@
+.LogDiv{
+  border: 1px solid black;
+  width: 60%;
+  margin: auto;
+}
+.LogForm{
+  padding: 3px 3px 3px 3px
+}
+
+.labelLogin{
+  padding-left: 4px;
+  padding-right: 3px;
+}
+.buttonLogin{
+  float: right
+}
+.buttonLogout{
+  float: right
+}
+
+
+
+.SelectDiv{
+  border: 1px solid black;
+  width: 40%;
+  margin: auto;
+}
+.labelSelect{
+  padding-left: 4px;
+  padding-right: 3px;
+}
+.TdLabelSelect{
+  width: 20%;
+}
+.TabSelect{
+  width: 100%;
+}
+.PresenzeSelect{
+  width: 100%;
+}
+
+.grassetto {font-weight: bold;}
+.dimens7 {font-size: 7pt;}
+
+.TitBox {
+  font-size: 20pt;
+  font-weight: bold;
+}
+
+.TrSelect {
+}
+
+.PresenzeDiv{
+  border: 1px solid black;
+  width: 100%;
+  margin: auto;
+}
+.RgLabelSelect{
+  width: 10%;
+}
+.tableInput{}
+
+.modalDialog {
+  border-style: solid;
+  border-width: 2px solid #222;
+  height: auto;
+  width: 20%;
+  background-color: #b3b1b1;
+  box-shadow: 5px 5px 10px 7px #555;
+
+}
+.ajaxErrorPopupTable{
+  width: 100%
+}
+.imgErrorBox{
+  height: 60px;
+  width: 60px;
+}

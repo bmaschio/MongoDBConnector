@@ -18,6 +18,7 @@ scope (InsertMongoTest){
            valueToPrettyString@StringUtils(connectValue)(s);
            println@Console(s)();
            connect@MongoDB(connectValue)();
+           connect@MongoDB(connectValue)();
           listCollection@MongoDB ()(response);
           valueToPrettyString@StringUtils(response)(s);
           println@Console(s)();
@@ -33,11 +34,21 @@ scope (InsertMongoTest){
                  .resource.collection ="";
                  .actions[0]= "find";
                  .actions[1]= "insert"
-                 }
 
                };
-        createRole@MongoDB (requestRole)()
-
+              .roles[0].role = "read";
+              .roles[0].db   = "admin"
+               };
+          updateRole@MongoDB(requestRole)();
+          readRoles@MongoDB()(response);
+          valueToPrettyString@StringUtils(response)(s);
+          println@Console(s)();
+          undef(requestRole);
+          requestRole.roleName = "MyFirstRole";
+          dropRole@MongoDB(requestRole)();
+          readRoles@MongoDB()(response);
+          valueToPrettyString@StringUtils(response)(s);
+          println@Console(s)()
 }
 
 }

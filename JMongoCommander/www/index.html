@@ -1,0 +1,195 @@
+	<!DOCTYPE html>
+<head>
+	<link rel="stylesheet" href="css/timbrature.css" />
+	<link rel="stylesheet" href="css/jtree/style.css" />
+  <script type="text/javascript" src="lib/jquery-3.1.0.min.js"></script>
+  <script type="text/javascript" src="lib/jstree.min.js"></script>
+  <script type="text/javascript" src="js/General.js"></script>
+</head>
+
+  <body>
+  <div id = "mainDiv" >
+		<table id ="mainTable">
+			<tr>
+      <td>
+				<div id="jstree">
+				</div>
+			<td>
+			</tr>
+		</table>
+	</div>
+		<!--dialog id="ajaxErrorPopup" class="modalDialog">
+
+			<table class ="ajaxErrorPopupTable">
+
+				<tr>
+					  <td>
+							<label class ="TitBox" id ="errorMessageTitle">Sample Dialog!</label>
+					  </td>
+						<td>
+							<img class = "imgErrorBox" src="img/error.png" alt="Smiley face">
+						</td>
+				</tr>
+
+				<tr>
+					 <td>
+						 <p id = "errorMessageText">Lorem ipsum dolor sit amet, consectetur adipisicing elit. Earum, inventore!</p>
+					 </td>
+
+				</tr>
+
+				<tr>
+					<td>
+					<button id="ajaxErrorButton">Chiudi</button>
+				</td>
+				</tr>
+
+			</table>
+    </dialog>
+
+
+		<div class="LogDiv">
+			<form class = "LogForm" id= "LogForm">
+				<label for "userInput" class ="labelLogin" id ="userLabel">Utente</label>
+				<input type = "text" id= "userInput"></input>
+
+				<label for "passwordInput" class ="labelLogin" id ="passwordLabel">Password</label>
+				<input type = "password" id= "passwordInput"></input>
+
+				<button type= "button" id= "loginButton" class = "buttonLogin">Login</button>
+				<button type= "button" id= "logoutButton" class = "buttonLogout">Logout</button>
+
+			</form>
+		</div>
+
+		<br>
+
+		<div class="SelectDiv" id = "selectDiv">
+
+       <table class="TabSelect">
+
+			 <tr  class="TrSelect">
+				 <td class = "TdLabelSelect">
+					 <label for "areaSelect" class ="labelSelect" id ="areaLabel">Area</label>
+				 </td>
+				 <td>
+					 <select id="areaSelect"></select>
+				 </td>
+			</tr >
+
+			<tr class="TrSelect">
+				<td class = "TdLabelSelect">
+					<label for "repartoSelect" class ="labelSelect" id ="repartoLabel">Reparto</label>
+				</td>
+				<td>
+					<select id="repartoSelect"></select>
+       	</td>
+			</tr>
+
+			<tr class="TrSelect">
+				<td class = "TdLabelSelect">
+					<label for "dataSelect" class ="labelSelect" id ="dataLabel">Data timbrature</label>
+				</td>
+				<td>
+					<input type = "date" id= "dataInput"></input>
+       	</td>
+			</tr>
+
+			</table>
+
+		</div>
+
+		<br>
+
+		<div class="PresenzeDiv" id = "presenzeDiv">
+			<table border=1 id ="tablePresenze">
+  			<thead>
+    			<tr>
+
+      			<th>Matricola</th>
+      			<th>Cognome e Nome</th>
+						<th>Giustifica</th>
+						<th colspan="4">Marcature</th>
+						<th colspan="5">Ore</th>
+						<th>CORSO</th>
+						<th>C.Turno</th>
+						<th>Diff.Mans.</th>
+						<th>Motivazione straordinari e note</th>
+    			</tr>
+					<tr>
+						<th colspan="3"></th>
+						<th>entrata</th>
+						<th>uscita</th>
+						<th>entrata</th>
+						<th>uscita</th>
+
+						<th>ORD.</th>
+						<th>40%</th>
+						<th>60%</th>
+						<th>80%</th>
+						<th>DOM.</th>
+
+						<th>80%</th>
+					</tr>
+  			</thead>
+  			<tbody id="tablePresenzeBody">
+    			<tr>
+      			<td>
+								<input type = "text" id= "matricolaInput" readonly value="00000"></input>
+						</td>
+      			<td>
+							<input type = "text" id= "nomeInput" readonly value="Zorro"></input>
+						</td>
+						<td>
+							<input type = "text" id= "giustificaInput" maxlength="10"></input>
+						</td>
+
+						<td>
+							<input type = "time" id= "entrata1Input"></input>
+						</td>
+						<td>
+							<input type = "time" id= "uscita1Input"></input>
+						</td>
+						<td>
+							<input type = "time" id= "entrata2Input"></input>
+						</td>
+						<td>
+							<input type = "time" id= "uscita2Input"></input>
+						</td>
+
+						<td>
+							<input type = "number" id= "ordInput" min="0" max="24" step="0.25"></input>
+						</td>
+						<td>
+							<input type = "number" id= "40Input" min="0" max="24"></input>
+						</td>
+						<td>
+							<input type = "number" id= "60Input" min="0" max="24"></input>
+						</td>
+						<td>
+							<input type = "number" id= "80Input" min="0" max="24"></input>
+						</td>
+						<td>
+							<input type = "number" id= "domInput" min="0" max="24"></input>
+						</td>
+
+						<td>
+							<input type = "number" id= "corsoInput" min="0" max="24"></input>
+						</td>
+						<td>
+							<input type = "number" id= "cturnoInput" min="0" max="24"></input>
+						</td>
+						<td>
+							<input type = "number" id= "diffmansInput" min="0" max="24"></input>
+						</td>
+						<td>
+							<input type = "text" id= "motivazioniInput" maxlength="120"></input>
+						</td>
+
+    			</tr>
+
+  			</tbody>
+			</table>
+		</div-->
+
+  </body>

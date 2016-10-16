@@ -106,18 +106,28 @@ public class MongoDbConnector extends JavaService {
             } else {
                 is64 = false;
             }
-            ServerAddress serverAddress = new ServerAddress(host,port);
+            ServerAddress serverAddress = new ServerAddress(host, port);
             ArrayList<MongoCredential> credentials = new ArrayList();
             MongoCredential credential = MongoCredential.createCredential(username, dbname, password.toCharArray());
             credentials.add(credential);
-            mongoClient = new MongoClient (serverAddress, credentials);
-            db = mongoClient.getDatabase(dbname);
+            if (null != mongoClient) {
+                    System.out.println("recovering client");
+                    db = mongoClient.getDatabase(dbname);
+            }else{
+                    mongoClient = new MongoClient(serverAddress, credentials);
+                    db = mongoClient.getDatabase(dbname);
+            }
+            
             zone = DateTimeZone.forID(timeZone);
             DateTimeZone.setDefault(zone);
 
         } catch (MongoException ex) {
             throw new FaultException("LoginConnection", ex);
         }
+    }
+    
+    @RequestResponse void close (Value request){
+       mongoClient.close();
     }
 
     @RequestResponse
@@ -209,7 +219,6 @@ public class MongoDbConnector extends JavaService {
             BsonDocument bsonDocument = createDocument(request.getFirstChild("document"));
             printlnJson("insert document", bsonDocument);
             db.getCollection(collectionName, BsonDocument.class).insertOne(bsonDocument);
-            
 
         } catch (MongoException ex) {
             throw new FaultException("MongoException", ex);
@@ -254,90 +263,218 @@ public class MongoDbConnector extends JavaService {
         }
 
     }
+
     @RequestResponse
-    public Value listCollection(){
+    public Value listCollection() {
         Value v = Value.create();
         MongoIterable<String> listCollectionNames = db.listCollectionNames();
         MongoCursor<String> iteratorListCollectionNames = listCollectionNames.iterator();
         int counterCollection = 0;
-        while (iteratorListCollectionNames.hasNext()){
-           String collection =iteratorListCollectionNames.next();
-           v.getChildren("collection").get(counterCollection).add(Value.create(collection));
-           counterCollection++;
+        while (iteratorListCollectionNames.hasNext()) {
+            String collection = iteratorListCollectionNames.next();
+            v.getChildren("collection").get(counterCollection).add(Value.create(collection));
+            counterCollection++;
         }
         return v;
     }
-    
+
     @RequestResponse
-    public Value listDB(){
+    public Value listDB() {
         Value v = Value.create();
         MongoIterable<String> databaseNames = mongoClient.listDatabaseNames();
         MongoCursor<String> databaseNamesIterator = databaseNames.iterator();
-         int counterDatabase = 0;
-        while (databaseNamesIterator.hasNext()){
-          v.getChildren("collection").get(counterDatabase).add(Value.create(databaseNamesIterator.next()));
-          
+        int counterDatabase = 0;
+        while (databaseNamesIterator.hasNext()) {
+            v.getChildren("db").get(counterDatabase).add(Value.create(databaseNamesIterator.next()));
+
         }
         return v;
     }
+
+    @RequestResponse
+    public Value createRole(Value request) {
+
+        Value v = Value.create();
+        DBObject createRoleObj = new BasicDBObject();
+        createRoleObj.put("createRole", request.getFirstChild("roleName").strValue());
+        ArrayList<DBObject> privilages = new ArrayList();
+        for (int counterPrivilages = 0; counterPrivilages < request.getChildren("privilages").size(); counterPrivilages++) {
+            DBObject privilageObj = new BasicDBObject();
+
+            DBObject resourceObj = new BasicDBObject();
+            Map<String, ValueVector> resourceMap = request.getChildren("privilages").get(counterPrivilages).getFirstChild("resource").children();
+            Set<String> keyResource = resourceMap.keySet();
+            Iterator<String> keyResourceIterator = keyResource.iterator();
+            while (keyResourceIterator.hasNext()) {
+                String resourceName = keyResourceIterator.next();
+
+                ValueVector resourceData = resourceMap.get(resourceName);
+                if (resourceData.get(0).isBool()) {
+                    resourceObj.put(resourceName, resourceData.get(0).boolValue());
+                }
+                if (resourceData.get(0).isString()) {
+                    resourceObj.put(resourceName, resourceData.get(0).strValue());
+                }
+            }
+
+            privilageObj.put("resource", resourceObj);
+            ArrayList<String> actionsObject = new ArrayList();
+            for (int counterActions = 0; counterActions < request.getChildren("privilages").get(counterPrivilages).getChildren("actions").size(); counterActions++) {
+                actionsObject.add(request.getChildren("privilages").get(counterPrivilages).getChildren("actions").get(counterActions).strValue());
+
+            }
+            privilageObj.put("actions", actionsObject);
+            privilages.add(privilageObj);
+        }
+        createRoleObj.put("privileges", privilages);
+
+        ArrayList<DBObject> rolesObject = new ArrayList<>();
+        for (int counterRoles = 0; counterRoles < request.getChildren("roles").size(); counterRoles++) {
+            DBObject roleObj = new BasicDBObject();
+            roleObj.put("role", request.getChildren("roles").get(counterRoles).getFirstChild("role").strValue());
+            roleObj.put("db", request.getChildren("roles").get(counterRoles).getFirstChild("db").strValue());
+            rolesObject.add(roleObj);
+        }
+
+        createRoleObj.put("roles", rolesObject);
+        System.out.println(createRoleObj.toString());
+        Document a = db.runCommand((Bson) createRoleObj);
+
+        System.out.println(a.toJson().toString());
+        return v;
+
+    }
+
+    @RequestResponse
+    public Value updateRole(Value request) {
+
+        Value v = Value.create();
+        DBObject createRoleObj = new BasicDBObject();
+        createRoleObj.put("updateRole", request.getFirstChild("roleName").strValue());
+        ArrayList<DBObject> privilages = new ArrayList();
+        for (int counterPrivilages = 0; counterPrivilages < request.getChildren("privilages").size(); counterPrivilages++) {
+            DBObject privilageObj = new BasicDBObject();
+            DBObject resourceObj = new BasicDBObject();
+            Map<String, ValueVector> resourceMap = request.getChildren("privilages").get(counterPrivilages).getFirstChild("resource").children();
+            Set<String> keyResource = resourceMap.keySet();
+            Iterator<String> keyResourceIterator = keyResource.iterator();
+            while (keyResourceIterator.hasNext()) {
+                String resourceName = keyResourceIterator.next();
+
+                ValueVector resourceData = resourceMap.get(resourceName);
+                if (resourceData.get(0).isBool()) {
+                    resourceObj.put(resourceName, resourceData.get(0).boolValue());
+                }
+                if (resourceData.get(0).isString()) {
+                    resourceObj.put(resourceName, resourceData.get(0).strValue());
+                }
+            }
+
+            privilageObj.put("resource", resourceObj);
+            ArrayList<String> actionsObject = new ArrayList();
+            for (int counterActions = 0; counterActions < request.getChildren("privilages").get(counterPrivilages).getChildren("actions").size(); counterActions++) {
+                actionsObject.add(request.getChildren("privilages").get(counterPrivilages).getChildren("actions").get(counterActions).strValue());
+
+            }
+            privilageObj.put("actions", actionsObject);
+            privilages.add(privilageObj);
+        }
+        createRoleObj.put("privileges", privilages);
+        ArrayList<DBObject> rolesObject = new ArrayList<>();
+        for (int counterRoles = 0; counterRoles < request.getChildren("roles").size(); counterRoles++) {
+            DBObject roleObj = new BasicDBObject();
+            roleObj.put("role", request.getChildren("roles").get(counterRoles).getFirstChild("role").strValue());
+            roleObj.put("db", request.getChildren("roles").get(counterRoles).getFirstChild("db").strValue());
+            rolesObject.add(roleObj);
+        }
+
+        createRoleObj.put("roles", rolesObject);
+        System.out.println(createRoleObj.toString());
+        Document response = db.runCommand((Bson) createRoleObj);
+
+        System.out.println(response.toJson().toString());
+        return v;
+
+    }
     
     @RequestResponse
-    public Value createRole(Value request){
+    public Value dropRole(Value request) {
         
-      Value v = Value.create();  
-      DBObject createRoleObj = new BasicDBObject();
-      createRoleObj.put("createRole",request.getFirstChild("roleName").strValue());
-        ArrayList<DBObject> privilages = new ArrayList();
-      for (int counterPrivilages =0; counterPrivilages< request.getChildren("privilages").size(); counterPrivilages++){
-          DBObject privilageObj = new BasicDBObject();
-          
-           DBObject resourceObj = new BasicDBObject();
-           Map<String, ValueVector> resourceMap = request.getChildren("privilages").get(counterPrivilages).getFirstChild("resource").children();
-           Set<String> keyResource = resourceMap.keySet();
-           Iterator<String> keyResourceIterator = keyResource.iterator();
-           while (keyResourceIterator.hasNext()){
-             String resourceName =  keyResourceIterator.next();
-             
-              ValueVector resourceData = resourceMap.get(resourceName);
-              if (resourceData.get(0).isBool()){
-                  resourceObj.put(resourceName,resourceData.get(0).boolValue() );
-              }
-              if (resourceData.get(0).isString()){
-                 resourceObj.put(resourceName,resourceData.get(0).strValue());
-              }
-           }
-          
-          
-          privilageObj.put ("resource" , resourceObj);
-          ArrayList<String> actionsObject = new ArrayList();
-          for (int counterActions =0; counterActions < request.getChildren("privilages").get(counterPrivilages).getChildren("actions").size(); counterActions++){
-            actionsObject.add(request.getChildren("privilages").get(counterPrivilages).getChildren("actions").get(counterActions).strValue());
-                     
-          }
-          privilageObj.put ("actions" ,  actionsObject);
-          privilages.add(privilageObj);
-      }
-       createRoleObj.put("privileges",  privilages); 
-       
-       
-       System.out.println(createRoleObj.toString());
-       DBObject roleObj = new BasicDBObject();
-       roleObj.put("role", "read");
-       roleObj.put("db", "admin");
-       ArrayList<DBObject> rolesObj = new  ArrayList();
-       rolesObj.add(roleObj); 
-       createRoleObj.put("roles",  rolesObj); 
-       Document a = db.runCommand((Bson) createRoleObj);
-       System.out.println(a.toJson().toString());
-       return v;
+        Value v = Value.create();
+        DBObject createRoleObj = new BasicDBObject();
+        createRoleObj.put("dropRole", request.getFirstChild("roleName").strValue());
         
+        System.out.println(createRoleObj.toString());
+        Document response = db.runCommand((Bson) createRoleObj);
+
+        System.out.println(response.toJson().toString());
+        return v;
+
+    }
+
+    @RequestResponse
+    public Value readRoles(Value request) {
+        Value v = Value.create();
+        MongoCollection<BsonDocument> collection = db.getCollection("system.roles", BsonDocument.class);
+        FindIterable<BsonDocument> iteratable = collection.find();
+        iteratable.forEach(new Block<BsonDocument>() {
+            @Override
+            public void apply(BsonDocument t) {
+                Value queryValue = processQueryRow(t);
+
+                v.getChildren("roles").add(queryValue);
+            }
+        });
+
+        return v;
+    }
+    @RequestResponse
+    public Value createUser (Value request){
+      Value v = Value.create();
+        DBObject createUserObj = new BasicDBObject();
+        createUserObj.put("createUser", request.getFirstChild("username").strValue());
+        ArrayList<BasicDBObject> rolesObj = new ArrayList();
+        for (int counterRoles =0 ; counterRoles < request.getChildren("roles").size(); counterRoles++){
+           BasicDBObject roleObj = new BasicDBObject();
+           roleObj.put("role", request.getChildren("roles").get(counterRoles).getFirstChild("role").strValue());
+           if (request.getChildren("roles").get(counterRoles).hasChildren("db")){
+             roleObj.put("db", request.getChildren("roles").get(counterRoles).getFirstChild("db").strValue());
+           };
+           rolesObj.add(roleObj);
+        }  
+        createUserObj.put("roles", rolesObj);
+        createUserObj.put("roles",request.getFirstChild("password").strValue());
+        Document response = db.runCommand((Bson) createUserObj);
+      return v;          
+    }
+    
+    @RequestResponse
+    public Value updateUser (Value request){
+      Value v = Value.create();
+        DBObject updateUserObj = new BasicDBObject();
+        updateUserObj.put("updateUser", request.getFirstChild("username").strValue());
+        ArrayList<BasicDBObject> rolesObj = new ArrayList();
+        for (int counterRoles =0 ; counterRoles < request.getChildren("roles").size(); counterRoles++){
+           BasicDBObject roleObj = new BasicDBObject();
+           roleObj.put("role", request.getChildren("roles").get(counterRoles).getFirstChild("role").strValue());
+           if (request.getChildren("roles").get(counterRoles).hasChildren("db")){
+             roleObj.put("db", request.getChildren("roles").get(counterRoles).getFirstChild("db").strValue());
+           };
+           rolesObj.add(roleObj);
+        }  
+        updateUserObj.put("roles", rolesObj);
+        updateUserObj.put("roles",request.getFirstChild("password").strValue());
+        Document response = db.runCommand((Bson) updateUserObj);
+      return v;          
     }
     
     
-    public Value getDBReadConcern(){
+    @RequestResponse
+    public Value getDBReadConcern() {
         ReadConcern readConcern = db.getReadConcern();
         return (processQueryRow(readConcern.asDocument()));
     }
+
     @RequestResponse
     public Value aggregate(Value request) throws FaultException {
         Value v = Value.create();
@@ -377,7 +514,7 @@ public class MongoDbConnector extends JavaService {
                     String conditionValueName = conditionValue.getValue().substring(1);
 
                     if (request.getFirstChild(conditionValueName).isInt()) {
-             
+
                         if (is64) {
                             BsonInt64 objToInsert = new BsonInt64(request.getFirstChild(conditionValueName).intValue());
                             bsonQueryDocument.put(keyName, objToInsert);
@@ -387,29 +524,29 @@ public class MongoDbConnector extends JavaService {
                         }
                     }
                     if (request.getFirstChild(conditionValueName).isDouble()) {
-                        
+
                         BsonDouble objToInsert = new BsonDouble(request.getFirstChild(conditionValueName).doubleValue());
                         bsonQueryDocument.put(keyName, objToInsert);
                     }
                     if (request.getFirstChild(conditionValueName).isString()) {
-                        
+
                         BsonString objToInsert = new BsonString(request.getFirstChild(conditionValueName).strValue());
                         bsonQueryDocument.put(keyName, objToInsert);
 
                     }
                     if (request.getFirstChild(conditionValueName).hasChildren()) {
-                        
+
                         if (request.getFirstChild(conditionValueName).hasChildren("@type")) {
-                            
+
                             if (request.getFirstChild(conditionValueName).getFirstChild("@type").strValue().equals("Date")) {
 
                                 BsonDateTime objToInsert = new BsonDateTime(request.getFirstChild(conditionValueName).longValue());
-                               
+
                                 bsonQueryDocument.put(keyName, objToInsert);
 
                             }
                             if (request.getFirstChild(conditionValueName).getFirstChild("@type").strValue().equals("Point")) {
-                                
+
                                 ArrayList<BsonElement> bsonPoint = new ArrayList();
                                 BsonElement typeElement = new BsonElement("type", new BsonString("Point"));
                                 bsonPoint.add(typeElement);
@@ -419,13 +556,12 @@ public class MongoDbConnector extends JavaService {
                                 BsonElement coordinateElement = new BsonElement("coordinates", coordinates);
                                 bsonPoint.add(coordinateElement);
                                 BsonDocument bsonObj = new BsonDocument(bsonPoint);
-                               
+
                                 bsonQueryDocument.put(keyName, bsonObj);
-                               
 
                             }
-                                                        if (request.getFirstChild(conditionValueName).getFirstChild("@type").strValue().equals("Point")) {
-                                
+                            if (request.getFirstChild(conditionValueName).getFirstChild("@type").strValue().equals("Point")) {
+
                                 ArrayList<BsonElement> bsonPoint = new ArrayList();
                                 BsonElement typeElement = new BsonElement("type", new BsonString("Point"));
                                 bsonPoint.add(typeElement);
@@ -435,13 +571,12 @@ public class MongoDbConnector extends JavaService {
                                 BsonElement coordinateElement = new BsonElement("coordinates", coordinates);
                                 bsonPoint.add(coordinateElement);
                                 BsonDocument bsonObj = new BsonDocument(bsonPoint);
-     
+
                                 bsonQueryDocument.put(keyName, bsonObj);
-                                
 
                             }
                         } else {
-                           
+
                             bsonQueryDocument.put(keyName, createDocument(request.getFirstChild(conditionValueName)));
                         }
                     }
@@ -457,105 +592,105 @@ public class MongoDbConnector extends JavaService {
                 }
             }
 
-            if (bsonQueryDocument.isDocument(keyName) ) {
-                if (!bsonQueryDocument.getDocument(keyName).containsKey("type")){
-           
-                BsonDocument conditionObject = bsonQueryDocument.getDocument(keyName);
-                Iterator iteratorMapCondition = conditionObject.keySet().iterator();
-                while (iteratorMapCondition.hasNext()) {
-                    String conditionName = (String) iteratorMapCondition.next();
-                    if (conditionObject.isArray(conditionName)) {
-                        BsonArray supportListValueCondition = new BsonArray();
-                        BsonArray listValueCondition = conditionObject.asArray();
-                        for (int counterCondition = 0; counterCondition < listValueCondition.size(); counterCondition++) {
+            if (bsonQueryDocument.isDocument(keyName)) {
+                if (!bsonQueryDocument.getDocument(keyName).containsKey("type")) {
 
-                            if (listValueCondition.get(counterCondition).isString()) {
-                                String conditionValue = listValueCondition.asString().getValue().substring(1);
+                    BsonDocument conditionObject = bsonQueryDocument.getDocument(keyName);
+                    Iterator iteratorMapCondition = conditionObject.keySet().iterator();
+                    while (iteratorMapCondition.hasNext()) {
+                        String conditionName = (String) iteratorMapCondition.next();
+                        if (conditionObject.isArray(conditionName)) {
+                            BsonArray supportListValueCondition = new BsonArray();
+                            BsonArray listValueCondition = conditionObject.asArray();
+                            for (int counterCondition = 0; counterCondition < listValueCondition.size(); counterCondition++) {
+
+                                if (listValueCondition.get(counterCondition).isString()) {
+                                    String conditionValue = listValueCondition.asString().getValue().substring(1);
+                                    if (request.getFirstChild(conditionValue).isInt()) {
+                                        addLog("prepareBsonQueryData>>> request.getFirstChild(conditionValue).isInt() if object array " + conditionValue);
+                                        if (is64) {
+                                            supportListValueCondition.add(new BsonInt64(request.getFirstChild(conditionValue).intValue()));
+                                        } else {
+                                            supportListValueCondition.add(new BsonInt32(request.getFirstChild(conditionValue).intValue()));
+                                        }
+                                    }
+                                    if (request.getFirstChild(conditionValue).isDouble()) {
+
+                                        supportListValueCondition.add(new BsonDouble(request.getFirstChild(conditionValue).doubleValue()));
+                                    }
+                                    if (request.getFirstChild(conditionValue).isString()) {
+
+                                        supportListValueCondition.add(new BsonString(request.getFirstChild(conditionValue).strValue()));
+                                    }
+                                }
+
+                            }
+                            conditionObject.append(conditionName, supportListValueCondition);
+                        } else {
+                            if (conditionObject.get(conditionName).isString()) {
+                                String conditionValue = conditionObject.getString(conditionName).getValue().substring(1);
+
                                 if (request.getFirstChild(conditionValue).isInt()) {
-                                    addLog("prepareBsonQueryData>>> request.getFirstChild(conditionValue).isInt() if object array " + conditionValue);
+                                    addLog("prepareBsonQueryData>>> request.getFirstChild(conditionValue).isInt() " + conditionValue);
                                     if (is64) {
-                                        supportListValueCondition.add(new BsonInt64(request.getFirstChild(conditionValue).intValue()));
+                                        conditionObject.append(conditionName, new BsonInt64(request.getFirstChild(conditionValue).intValue()));
                                     } else {
-                                        supportListValueCondition.add(new BsonInt32(request.getFirstChild(conditionValue).intValue()));
+                                        conditionObject.append(conditionName, new BsonInt32(request.getFirstChild(conditionValue).intValue()));
                                     }
                                 }
                                 if (request.getFirstChild(conditionValue).isDouble()) {
-                                    
-                                    supportListValueCondition.add(new BsonDouble(request.getFirstChild(conditionValue).doubleValue()));
+                                    addLog("prepareBsonQueryData>>> request.getFirstChild(conditionValue).isDouble() " + conditionValue);
+                                    conditionObject.put(conditionName, new BsonDouble(request.getFirstChild(conditionValue).doubleValue()));
+
                                 }
                                 if (request.getFirstChild(conditionValue).isString()) {
-                                    
-                                    supportListValueCondition.add(new BsonString(request.getFirstChild(conditionValue).strValue()));
+                                    addLog("prepareBsonQueryData>>> request.getFirstChild(conditionValue).isString() " + conditionValue);
+                                    conditionObject.put(conditionName, new BsonString(request.getFirstChild(conditionValue).strValue()));
                                 }
-                            }
 
-                        }
-                        conditionObject.append(conditionName, supportListValueCondition);
-                    } else {
-                        if (conditionObject.get(conditionName).isString()) {
-                            String conditionValue = conditionObject.getString(conditionName).getValue().substring(1);
-                            
-                            if (request.getFirstChild(conditionValue).isInt()) {
-                                addLog("prepareBsonQueryData>>> request.getFirstChild(conditionValue).isInt() " + conditionValue);
-                                if (is64) {
-                                    conditionObject.append(conditionName, new BsonInt64(request.getFirstChild(conditionValue).intValue()));
-                                } else {
-                                    conditionObject.append(conditionName, new BsonInt32(request.getFirstChild(conditionValue).intValue()));
-                                }
-                            }
-                            if (request.getFirstChild(conditionValue).isDouble()) {
-                                addLog("prepareBsonQueryData>>> request.getFirstChild(conditionValue).isDouble() " + conditionValue);
-                                conditionObject.put(conditionName, new BsonDouble(request.getFirstChild(conditionValue).doubleValue()));
+                                if (request.getFirstChild(conditionValue).hasChildren()) {
+                                    addLog("prepareBsonQueryData>>> request.getFirstChild(conditionValue).hasChildren() " + conditionValue);
+                                    if (request.getFirstChild(conditionValue).hasChildren("@type")) {
 
-                            }
-                            if (request.getFirstChild(conditionValue).isString()) {
-                                addLog("prepareBsonQueryData>>> request.getFirstChild(conditionValue).isString() " + conditionValue);
-                                conditionObject.put(conditionName, new BsonString(request.getFirstChild(conditionValue).strValue()));
-                            }
+                                        if (request.getFirstChild(conditionValue).getFirstChild("@type").strValue().equals("Date")) {
 
-                            if (request.getFirstChild(conditionValue).hasChildren()) {
-                                addLog("prepareBsonQueryData>>> request.getFirstChild(conditionValue).hasChildren() " + conditionValue);
-                                if (request.getFirstChild(conditionValue).hasChildren("@type")) {
+                                            BsonDateTime objToInsert = new BsonDateTime(request.getFirstChild(conditionValue).longValue());
 
-                                    if (request.getFirstChild(conditionValue).getFirstChild("@type").strValue().equals("Date")) {
+                                            conditionObject.put(conditionName, objToInsert);
+                                        }
 
-                                        BsonDateTime objToInsert = new BsonDateTime(request.getFirstChild(conditionValue).longValue());
-                                        
-                                        conditionObject.put(conditionName, objToInsert);
+                                        if (request.getFirstChild(conditionValue).getFirstChild("@type").strValue().equals("Point")) {
+
+                                            ArrayList<BsonElement> bsonPoint = new ArrayList();
+                                            BsonElement typeElement = new BsonElement("type", new BsonString("Point"));
+                                            bsonPoint.add(typeElement);
+                                            BsonArray coordinates = new BsonArray();
+                                            coordinates.add(new BsonDouble(request.getFirstChild(conditionValue).getFirstChild("coordinates").getFirstChild("lat").doubleValue()));
+                                            coordinates.add(new BsonDouble(request.getFirstChild(conditionValue).getFirstChild("coordinates").getFirstChild("log").doubleValue()));
+                                            BsonElement coordinateElement = new BsonElement("coordinates", coordinates);
+                                            bsonPoint.add(coordinateElement);
+                                            BsonDocument bsonObj = new BsonDocument(bsonPoint);
+                                            bsonQueryDocument.put(keyName, bsonObj);
+
+                                        }
+                                    } else {
+                                        addLog("prepareBsonQueryData>>> request.getFirstChild(conditionValue).hasChildren() not Date ");
+                                        conditionObject.put(conditionName, createDocument(request.getFirstChild(conditionValue)));
                                     }
-
-                                    if (request.getFirstChild(conditionValue).getFirstChild("@type").strValue().equals("Point")) {
-                                       
-                                        ArrayList<BsonElement> bsonPoint = new ArrayList();
-                                        BsonElement typeElement = new BsonElement("type", new BsonString("Point"));
-                                        bsonPoint.add(typeElement);
-                                        BsonArray coordinates = new BsonArray();
-                                        coordinates.add(new BsonDouble(request.getFirstChild(conditionValue).getFirstChild("coordinates").getFirstChild("lat").doubleValue()));
-                                        coordinates.add(new BsonDouble(request.getFirstChild(conditionValue).getFirstChild("coordinates").getFirstChild("log").doubleValue()));
-                                        BsonElement coordinateElement = new BsonElement("coordinates", coordinates);
-                                        bsonPoint.add(coordinateElement);
-                                        BsonDocument bsonObj = new BsonDocument(bsonPoint);
-                                        bsonQueryDocument.put(keyName, bsonObj);
-
-                                    }
-                                } else {
-                                    addLog("prepareBsonQueryData>>> request.getFirstChild(conditionValue).hasChildren() not Date ");
-                                    conditionObject.put(conditionName, createDocument(request.getFirstChild(conditionValue)));
                                 }
+
                             }
+                            if (conditionObject.get(conditionName).isDocument()) {
 
-                        }
-                        if (conditionObject.get(conditionName).isDocument()) {
+                                addLog("prepareBsonQueryData>>> conditionObject.get(conditionName).isDocument() " + conditionName);
+                                prepareBsonQueryData(conditionObject.get(conditionName).asDocument(), request);
 
-                            addLog("prepareBsonQueryData>>> conditionObject.get(conditionName).isDocument() " + conditionName);
-                            prepareBsonQueryData(conditionObject.get(conditionName).asDocument(), request);
-
+                            }
                         }
                     }
-                }
 
-                bsonQueryDocument.put(keyName, conditionObject);
-               }
+                    bsonQueryDocument.put(keyName, conditionObject);
+                }
             }
         }
         return bsonQueryDocument;
@@ -619,7 +754,7 @@ public class MongoDbConnector extends JavaService {
                                 } else {
                                     bsonArray.add(counterValueVector, bsonObj);
                                 }
-                            }else if (valueVector.get(counterValueVector).getFirstChild("@type").strValue().equals("LineString")) {
+                            } else if (valueVector.get(counterValueVector).getFirstChild("@type").strValue().equals("LineString")) {
                                 ArrayList<BsonElement> bsonPoint = new ArrayList();
                                 BsonElement typeElement = new BsonElement("type", new BsonString("LineString"));
                                 bsonPoint.add(typeElement);
@@ -638,7 +773,7 @@ public class MongoDbConnector extends JavaService {
                                 } else {
                                     bsonArray.add(counterValueVector, bsonObj);
                                 }
-                            }else if (valueVector.get(counterValueVector).getFirstChild("@type").strValue().equals("Polygon")) {
+                            } else if (valueVector.get(counterValueVector).getFirstChild("@type").strValue().equals("Polygon")) {
                                 ArrayList<BsonElement> bsonPoint = new ArrayList();
                                 BsonElement typeElement = new BsonElement("type", new BsonString("Polygon"));
                                 bsonPoint.add(typeElement);
@@ -657,8 +792,7 @@ public class MongoDbConnector extends JavaService {
                                 } else {
                                     bsonArray.add(counterValueVector, bsonObj);
                                 }
-                            } 
-                            else {
+                            } else {
                                 throw new FaultException("ComplexTypeNotSupported");
                             }
 
@@ -712,7 +846,7 @@ public class MongoDbConnector extends JavaService {
                 }
 
             } else {
-                
+
             }
 
         }
@@ -759,7 +893,7 @@ public class MongoDbConnector extends JavaService {
                         }
                     }
                     if (document.getDocument(nameField).containsValue(new BsonString("Polygon"))) {
-                       
+
                         v.getFirstChild(nameField).getFirstChild("@type").add(Value.create("Polygon"));
                         BsonArray coordinates = document.getDocument(nameField).getArray("coordinates");
                         for (int counter = 0; counter < coordinates.size(); counter++) {
@@ -829,10 +963,8 @@ public class MongoDbConnector extends JavaService {
     }
 
     private void showLog() {
-       
-       
-            logString = "Processing Steps at " + System.currentTimeMillis();
-        
+
+        logString = "Processing Steps at " + System.currentTimeMillis();
 
     }
 }

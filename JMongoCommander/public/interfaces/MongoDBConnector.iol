@@ -70,7 +70,11 @@ interface MongoDBInterface {
   aggregate (AggregateRequest)(AggregateResponse) throws MongoException JsonParseException,
   listCollection(ListCollectionRequest)(ListCollectionResponse) throws MongoException JsonParseException,
   getDBReadConcern(undefined)(undefined),
-  createRole(undefined)(undefined)
+  listDB(undefined)(undefined),
+  createRole(undefined)(undefined),
+  readRoles ( undefined)(undefined),
+  updateRole ( undefined)(undefined),
+  dropRole(undefined)(undefined)
 }
 
 
