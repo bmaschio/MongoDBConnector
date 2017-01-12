@@ -3,13 +3,13 @@ include "file.iol"
 include "time.iol"
 include "string_utils.iol"
 include "protocols/http.iol"
-include "/public/interface/MongoDBConnector.iol"
+include "/public/interfaces/MongoDBConnector.iol"
 
 
 interface HTTPInterface{
 	RequestResponse:
 	default(undefined)(undefined),
-	getDatabase(undefined)(undefined)
+	getDatabases(undefined)(undefined)
 }
 inputPort HttpInput {
 Protocol: http {
@@ -72,7 +72,7 @@ main
 			readFile@File( file )( response )
 		}
 	} ] { nullProcess }
-[getDatabase(request)(response){
+[getDatabases(request)(response){
 	connectValue.host = "localhost";
 	connectValue.dbname ="admin";
 	connectValue.username = "myUserAdmin";
@@ -84,5 +84,6 @@ main
 	valueToPrettyString@StringUtils(connectValue)(s);
 	println@Console(s)();
 	connect@MongoDB(connectValue)();
-	listDB@MongDB()(response)
+	listDB@MongoDB()(response)
 	}] { nullProcess }
+}

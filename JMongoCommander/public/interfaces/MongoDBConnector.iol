@@ -37,12 +37,12 @@ type UpdateRequest:void{
 
 type UpdateResponse:void
 
-type DeleteRequest:void{
+type DeleteRequestMongo:void{
   .collection: string
   .filter?:undefined
 }
 
-type DeleteResponse:void
+type DeleteResponseMongo:void
 
 type AggregateRequest:void{
     .collection: string
@@ -66,7 +66,7 @@ interface MongoDBInterface {
   query   (QueryRequest)(QueryResponse)   throws MongoException JsonParseException ,
   insert  (InsertRequest)(InsertResponse)   throws MongoException JsonParseException ,
   update  (UpdateRequest)(UpdateResponse)   throws MongoException JsonParseException ,
-  delete  (DeleteRequest)(DeleteResponse)   throws MongoException JsonParseException ,
+  delete  (DeleteRequestMongo)(DeleteResponseMongo)   throws MongoException JsonParseException ,
   aggregate (AggregateRequest)(AggregateResponse) throws MongoException JsonParseException,
   listCollection(ListCollectionRequest)(ListCollectionResponse) throws MongoException JsonParseException,
   getDBReadConcern(undefined)(undefined),

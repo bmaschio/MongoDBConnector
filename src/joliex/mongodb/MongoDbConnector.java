@@ -35,12 +35,10 @@ import java.util.List;
 import java.util.ListIterator;
 import java.util.Map;
 import java.util.Set;
-import java.util.TimeZone;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import jolie.runtime.FaultException;
 import jolie.runtime.ValueVector;
-import jolie.runtime.correlation.CorrelationError;
 import org.bson.BsonArray;
 import org.bson.BsonDateTime;
 import org.bson.BsonDouble;
@@ -53,6 +51,7 @@ import org.bson.BsonValue;
 import org.bson.Document;
 import org.bson.conversions.Bson;
 import org.bson.json.JsonParseException;
+import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
 
 /**
@@ -79,7 +78,7 @@ public class MongoDbConnector extends JavaService {
     private static Logger log;
     private static boolean jsonDebuger;
     private static boolean is64;
-    private DateTimeZone zone;
+    private static DateTimeZone zone;
     private static boolean logStream;
     private String logString;
 
@@ -105,7 +104,11 @@ public class MongoDbConnector extends JavaService {
                 is64 = true;
             } else {
                 is64 = false;
-            }
+            }            
+            
+            zone = DateTimeZone.forID(timeZone);
+
+            
             ServerAddress serverAddress = new ServerAddress(host, port);
             ArrayList<MongoCredential> credentials = new ArrayList();
             MongoCredential credential = MongoCredential.createCredential(username, dbname, password.toCharArray());
@@ -118,8 +121,7 @@ public class MongoDbConnector extends JavaService {
                     db = mongoClient.getDatabase(dbname);
             }
             
-            zone = DateTimeZone.forID(timeZone);
-            DateTimeZone.setDefault(zone);
+
 
         } catch (MongoException ex) {
             throw new FaultException("LoginConnection", ex);
@@ -286,7 +288,7 @@ public class MongoDbConnector extends JavaService {
         int counterDatabase = 0;
         while (databaseNamesIterator.hasNext()) {
             v.getChildren("db").get(counterDatabase).add(Value.create(databaseNamesIterator.next()));
-
+            counterDatabase++;
         }
         return v;
     }
@@ -712,8 +714,10 @@ public class MongoDbConnector extends JavaService {
                     if (valueVector.get(counterValueVector).hasChildren()) {
                         if (valueVector.get(counterValueVector).hasChildren("@type")) {
                             if (valueVector.get(counterValueVector).getFirstChild("@type").strValue().equals("Date")) {
-                                DateTimeZone.setDefault(zone);
-                                BsonDateTime bsonObj = new BsonDateTime(valueVector.get(counterValueVector).longValue());
+                               
+                                DateTime dt = new DateTime(zone.convertUTCToLocal(valueVector.get(counterValueVector).longValue()));                   
+                                BsonDateTime bsonObj = new BsonDateTime(dt.getMillis());
+                    
                                 if (valueVector.size() == 1) {
                                     bsonDocument.append(entry.getKey(), bsonObj);
                                 } else {
