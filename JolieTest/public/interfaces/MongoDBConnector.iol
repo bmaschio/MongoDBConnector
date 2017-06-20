@@ -3,6 +3,8 @@ type ConnectRequest:void{
   .dbname : string
   .port :int
   .timeZone:string
+  .username:string
+  .password:string
   .jsonStringDebug?:bool
   .logStreamDebug?:bool
 }
@@ -65,7 +67,7 @@ interface MongoDBInterface {
   insert  (InsertRequest)(InsertResponse)   throws MongoException JsonParseException ,
   update  (UpdateRequest)(UpdateResponse)   throws MongoException JsonParseException ,
   delete  (DeleteRequest)(DeleteResponse)   throws MongoException JsonParseException ,
-  aggregate (AggregateRequest)(AggregateResponse) throws MongoException JsonParseException
+  aggregate (AggregateRequest)(AggregateResponse) throws MongoException JsonParseException,
   listCollection(ListCollectionRequest)(ListCollectionResponse) throws MongoException JsonParseException
 }
 

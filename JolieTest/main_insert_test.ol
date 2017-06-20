@@ -12,6 +12,8 @@ init{
         .host = "localhost";
         .dbname ="prova";
         .port = 27017;
+        .password ="prova";
+        .username = "prova";
         .timeZone = "Europe/Berlin";
         .jsonStringDebug = true
       };
@@ -29,6 +31,12 @@ for (counter = 0, counter<1 , counter++ ){
     getCurrentTimeMillis@Time()(currentTime);
     q.collection = "CustomerSales";
     with (q.document){
+          .("_id")= "507faa837992";
+          .("_id").("@type")="ObjectId";
+          .reference.docref[0] = "507faa837999";
+          .reference.docref[0].("@type")="ObjectId";
+          .reference.docref[1] = "507faa837998";
+          .reference.docref[1].("@type")="ObjectId";
           .name    = "Balint";
           .surname = "Maschio";
           .code = "LALA01";

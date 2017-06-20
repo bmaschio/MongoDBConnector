@@ -8,6 +8,8 @@ connectValue.dbname ="prova";
 connectValue.port = 27017;
 connectValue.jsonStringDebug = true;
 connectValue.timeZone = "Europe/Berlin";
+connectValue.username = "prova";
+connectValue.password = "prova";
 connectValue.logStreamDebug = true;
 connect@MongoDB(connectValue)();
 q.collection = "CustomerSales";
