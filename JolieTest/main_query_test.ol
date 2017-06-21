@@ -13,6 +13,7 @@ connectValue.password = "prova";
 connectValue.logStreamDebug = true;
 connect@MongoDB(connectValue)();
 q.collection = "CustomerSales";
+q.filter = "{\"reference.docref\":{$in:'$docRefList'}}";
 /*q.query = "{\"spesa.ammount\":{$gt:\"$ammount\"}}";*/
 /*q.filter = "{purchase:{
   $nearSphere:{
@@ -22,11 +23,11 @@ q.collection = "CustomerSales";
   }
 }
 }";*/
-/*q.filter.point.coordinates.lat = 90.0 ;
-q.filter.point.coordinates.log = 90.0 ;
-q.filter.point.("@type")="Point";
-q.filter.minDist = 0;
-q.filter.maxDist = 10;*/
+q.filter.docRefList[0] = "507faa837999";
+q.filter.docRefList[0].("@type")="ObjectId";
+q.filter.docRefList[1] ="507faa837998";
+q.filter.docRefList[1].("@type")="ObjectId";
+
 
 valueToPrettyString@StringUtils (q)(s);
 println@Console("q>>>>"+s)();

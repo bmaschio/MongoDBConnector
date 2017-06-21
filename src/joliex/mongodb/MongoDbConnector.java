@@ -23,6 +23,7 @@ import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoCursor;
 import com.mongodb.client.MongoDatabase;
 import com.mongodb.client.MongoIterable;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import jolie.runtime.CanUseJars;
 import jolie.runtime.Value;
@@ -40,6 +41,7 @@ import java.util.logging.Logger;
 import jolie.runtime.ByteArray;
 import jolie.runtime.FaultException;
 import jolie.runtime.ValueVector;
+import org.apache.commons.codec.DecoderException;
 import org.bson.BsonArray;
 import org.bson.BsonBinary;
 import org.bson.BsonDateTime;
@@ -57,6 +59,7 @@ import org.bson.types.Binary;
 import org.bson.types.ObjectId;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
+import org.apache.commons.codec.binary.Hex;
 
 /**
  *
@@ -66,7 +69,8 @@ import org.joda.time.DateTimeZone;
     "mongo-java-driver-3.2.2.jar",
     "mongodb-driver-3.2.2.jar",
     "mongodb-driver-core-3.2.2.jar",
-    "joda-time-2.4.jar"
+    "joda-time-2.4.jar",
+    "commons-codec-1.10.jar"
 })
 public class MongoDbConnector extends JavaService {
 
@@ -518,15 +522,17 @@ public class MongoDbConnector extends JavaService {
     private BsonDocument prepareBsonQueryData(BsonDocument bsonQueryDocument, Value request) throws FaultException {
         Set<String> keySet = bsonQueryDocument.keySet();
         Iterator<String> iteratorKeySet = keySet.iterator();
+
         while (iteratorKeySet.hasNext()) {
             String keyName = iteratorKeySet.next();
-
+            System.out.println(keyName);
             if (bsonQueryDocument.isString(keyName)) {
 
                 BsonString conditionValue = bsonQueryDocument.getString(keyName);
-
+                System.out.println(conditionValue.getValue());
                 if (conditionValue.getValue().startsWith("$")) {
                     String conditionValueName = conditionValue.getValue().substring(1);
+                    System.out.println(conditionValueName + " " + request.getChildren(conditionValueName).size());
                     if (request.getChildren(conditionValueName).size() == 1) {
                         if (request.getFirstChild(conditionValueName).isInt()) {
 
@@ -622,7 +628,8 @@ public class MongoDbConnector extends JavaService {
                                 if (request.getFirstChild(conditionValueName).hasChildren("@type")) {
 
                                     if (request.getFirstChild(conditionValueName).getFirstChild("@type").strValue().equals("ObjectId")) {
-                                        BsonObjectId objToInsert = new BsonObjectId(new ObjectId(request.getFirstChild(conditionValueName).strValue()));
+                                        ObjectId objId = new ObjectId(Hex.encodeHexString(request.getChildren(conditionValueName).get(counter).strValue().getBytes()));
+                                        BsonObjectId objToInsert = new BsonObjectId(objId);
                                         condisionArray.add(objToInsert);
                                     }
 
@@ -646,6 +653,7 @@ public class MongoDbConnector extends JavaService {
             }
 
             if (bsonQueryDocument.isDocument(keyName)) {
+                System.out.println("Is Document " + keyName);
                 if (!bsonQueryDocument.getDocument(keyName).containsKey("type")) {
 
                     BsonDocument conditionObject = bsonQueryDocument.getDocument(keyName);
@@ -680,57 +688,98 @@ public class MongoDbConnector extends JavaService {
                             }
                             conditionObject.append(conditionName, supportListValueCondition);
                         } else {
-                            if (conditionObject.get(conditionName).isString()) {
-                                String conditionValue = conditionObject.getString(conditionName).getValue().substring(1);
+                            String conditionValue = conditionObject.getString(conditionName).getValue().substring(1);
+                            if (request.getChildren(conditionValue).size() == 1) {
+                                if (conditionObject.get(conditionName).isString()) {
 
-                                if (request.getFirstChild(conditionValue).isInt()) {
-                                    addLog("prepareBsonQueryData>>> request.getFirstChild(conditionValue).isInt() " + conditionValue);
-                                    if (is64) {
-                                        conditionObject.append(conditionName, new BsonInt64(request.getFirstChild(conditionValue).intValue()));
-                                    } else {
-                                        conditionObject.append(conditionName, new BsonInt32(request.getFirstChild(conditionValue).intValue()));
+                                    if (request.getFirstChild(conditionValue).isInt()) {
+                                        addLog("prepareBsonQueryData>>> request.getFirstChild(conditionValue).isInt() " + conditionValue);
+                                        if (is64) {
+                                            conditionObject.append(conditionName, new BsonInt64(request.getFirstChild(conditionValue).intValue()));
+                                        } else {
+                                            conditionObject.append(conditionName, new BsonInt32(request.getFirstChild(conditionValue).intValue()));
+                                        }
                                     }
-                                }
-                                if (request.getFirstChild(conditionValue).isDouble()) {
-                                    addLog("prepareBsonQueryData>>> request.getFirstChild(conditionValue).isDouble() " + conditionValue);
-                                    conditionObject.put(conditionName, new BsonDouble(request.getFirstChild(conditionValue).doubleValue()));
+                                    if (request.getFirstChild(conditionValue).isDouble()) {
+                                        addLog("prepareBsonQueryData>>> request.getFirstChild(conditionValue).isDouble() " + conditionValue);
+                                        conditionObject.put(conditionName, new BsonDouble(request.getFirstChild(conditionValue).doubleValue()));
+
+                                    }
+                                    if (request.getFirstChild(conditionValue).isString()) {
+                                        addLog("prepareBsonQueryData>>> request.getFirstChild(conditionValue).isString() " + conditionValue);
+                                        conditionObject.put(conditionName, new BsonString(request.getFirstChild(conditionValue).strValue()));
+                                    }
+
+                                    if (request.getFirstChild(conditionValue).hasChildren()) {
+                                        addLog("prepareBsonQueryData>>> request.getFirstChild(conditionValue).hasChildren() " + conditionValue);
+                                        if (request.getFirstChild(conditionValue).hasChildren("@type")) {
+
+                                            if (request.getFirstChild(conditionValue).getFirstChild("@type").strValue().equals("Date")) {
+
+                                                BsonDateTime objToInsert = new BsonDateTime(request.getFirstChild(conditionValue).longValue());
+
+                                                conditionObject.put(conditionName, objToInsert);
+                                            }
+
+                                            if (request.getFirstChild(conditionValue).getFirstChild("@type").strValue().equals("Point")) {
+
+                                                ArrayList<BsonElement> bsonPoint = new ArrayList();
+                                                BsonElement typeElement = new BsonElement("type", new BsonString("Point"));
+                                                bsonPoint.add(typeElement);
+                                                BsonArray coordinates = new BsonArray();
+                                                coordinates.add(new BsonDouble(request.getFirstChild(conditionValue).getFirstChild("coordinates").getFirstChild("lat").doubleValue()));
+                                                coordinates.add(new BsonDouble(request.getFirstChild(conditionValue).getFirstChild("coordinates").getFirstChild("log").doubleValue()));
+                                                BsonElement coordinateElement = new BsonElement("coordinates", coordinates);
+                                                bsonPoint.add(coordinateElement);
+                                                BsonDocument bsonObj = new BsonDocument(bsonPoint);
+                                                bsonQueryDocument.put(keyName, bsonObj);
+
+                                            }
+                                        } else {
+                                            addLog("prepareBsonQueryData>>> request.getFirstChild(conditionValue).hasChildren() not Date ");
+                                            conditionObject.put(conditionName, createDocument(request.getFirstChild(conditionValue)));
+                                        }
+                                    }
 
                                 }
-                                if (request.getFirstChild(conditionValue).isString()) {
-                                    addLog("prepareBsonQueryData>>> request.getFirstChild(conditionValue).isString() " + conditionValue);
-                                    conditionObject.put(conditionName, new BsonString(request.getFirstChild(conditionValue).strValue()));
-                                }
 
-                                if (request.getFirstChild(conditionValue).hasChildren()) {
-                                    addLog("prepareBsonQueryData>>> request.getFirstChild(conditionValue).hasChildren() " + conditionValue);
-                                    if (request.getFirstChild(conditionValue).hasChildren("@type")) {
+                            } else {
+                                BsonArray condisionArray = new BsonArray();
+                                for (int counter = 0; counter < request.getChildren(conditionValue).size(); counter++) {
+                                    if (request.getChildren(conditionValue).get(counter).isInt()){
+                                        if (is64) {
+                                          BsonInt64 objToInsert = new BsonInt64(request.getChildren(conditionValue).get(counter).intValue());
+                                          condisionArray.add(objToInsert);
+                                        } else {
+                                          BsonInt32 objToInsert = new BsonInt32 (request.getChildren(conditionValue).get(counter).intValue());
+                                          condisionArray.add(objToInsert);
+                                        }
+                                    }
+                                    if (request.getChildren(conditionValue).get(counter).isDouble()){
+                                        BsonDouble objToInsert = new BsonDouble(request.getChildren(conditionValue).get(counter).doubleValue());
+                                        condisionArray.add(objToInsert);
+                                    }
+                                    if (request.getChildren(conditionValue).get(counter).isString()){
+                                        BsonString objToInsert = new BsonString (request.getChildren(conditionValue).get(counter).strValue());
+                                        condisionArray.add(objToInsert);
+                                    }
+                                    
+                                    if (request.getFirstChild(conditionValue).hasChildren()) {
+                                        if (request.getFirstChild(conditionValue).hasChildren("@type")) {
+                                            if (request.getFirstChild(conditionValue).getFirstChild("@type").strValue().equals("ObjectId")) {
+                                                ObjectId objId = new ObjectId(Hex.encodeHexString(request.getChildren(conditionValue).get(counter).strValue().getBytes()));
+                                                BsonObjectId objToInsert = new BsonObjectId(objId);
+                                                condisionArray.add(objToInsert);
+                                            }
 
-                                        if (request.getFirstChild(conditionValue).getFirstChild("@type").strValue().equals("Date")) {
-
-                                            BsonDateTime objToInsert = new BsonDateTime(request.getFirstChild(conditionValue).longValue());
-
-                                            conditionObject.put(conditionName, objToInsert);
                                         }
 
-                                        if (request.getFirstChild(conditionValue).getFirstChild("@type").strValue().equals("Point")) {
-
-                                            ArrayList<BsonElement> bsonPoint = new ArrayList();
-                                            BsonElement typeElement = new BsonElement("type", new BsonString("Point"));
-                                            bsonPoint.add(typeElement);
-                                            BsonArray coordinates = new BsonArray();
-                                            coordinates.add(new BsonDouble(request.getFirstChild(conditionValue).getFirstChild("coordinates").getFirstChild("lat").doubleValue()));
-                                            coordinates.add(new BsonDouble(request.getFirstChild(conditionValue).getFirstChild("coordinates").getFirstChild("log").doubleValue()));
-                                            BsonElement coordinateElement = new BsonElement("coordinates", coordinates);
-                                            bsonPoint.add(coordinateElement);
-                                            BsonDocument bsonObj = new BsonDocument(bsonPoint);
-                                            bsonQueryDocument.put(keyName, bsonObj);
-
-                                        }
-                                    } else {
-                                        addLog("prepareBsonQueryData>>> request.getFirstChild(conditionValue).hasChildren() not Date ");
-                                        conditionObject.put(conditionName, createDocument(request.getFirstChild(conditionValue)));
                                     }
+
                                 }
+                                
+                                conditionObject.put(conditionName, condisionArray);
+                                
 
                             }
                             if (conditionObject.get(conditionName).isDocument()) {
@@ -849,7 +898,8 @@ public class MongoDbConnector extends JavaService {
                                 }
                             } else if (valueVector.get(counterValueVector).getFirstChild("@type").strValue().equals("ObjectId")) {
 
-                                ObjectId objId = new ObjectId(valueVector.get(counterValueVector).strValue().getBytes());
+                                ObjectId objId = new ObjectId(Hex.encodeHexString(valueVector.get(counterValueVector).strValue().getBytes()));
+
                                 BsonObjectId bsonObj = new BsonObjectId(objId);
                                 if (valueVector.size() == 1) {
 
@@ -1014,9 +1064,16 @@ public class MongoDbConnector extends JavaService {
                     } else if (obj instanceof BsonObjectId) {
                         BsonObjectId objId = BsonObjectId.class
                                 .cast(obj);
-                        Value objValue = Value.create(objId.getValue().toHexString());
-                        objValue.getNewChild("@type").add(Value.create("ObjectId"));
-                        v.getChildren(nameField).add(objValue);
+                        try {
+                            String str = new String(Hex.decodeHex(objId.getValue().toHexString().toCharArray()), StandardCharsets.UTF_8);
+                            Value objValue = Value.create(str);
+                            objValue.getNewChild("@type").add(Value.create("ObjectId"));
+                            v.getChildren(nameField).add(objValue);
+
+                        } catch (DecoderException ex) {
+                            Logger.getLogger(MongoDbConnector.class.getName()).log(Level.SEVERE, null, ex);
+                        }
+
                     } else if (obj instanceof BsonDocument) {
                         BsonDocument bsonObj = (BsonDocument) obj;
                         v.getChildren(nameField).add(processQueryRow(bsonObj));
@@ -1027,11 +1084,22 @@ public class MongoDbConnector extends JavaService {
                 BsonObjectId objId;
                 objId = document.getObjectId(nameField);
                 if (nameField.equals("_id")) {
-                    v.add(Value.create(objId.getValue().toHexString()));
+                    try {
+                        String str = new String(Hex.decodeHex(objId.getValue().toHexString().toCharArray()), StandardCharsets.UTF_8);
+                        v.add(Value.create(str));
+                    } catch (DecoderException ex) {
+                        Logger.getLogger(MongoDbConnector.class.getName()).log(Level.SEVERE, null, ex);
+                    }
 
                 } else {
-                    v.getChildren(nameField).add(Value.create(objId.getValue().toHexString()));
-                    v.getFirstChild(nameField).getFirstChild("@type").add(Value.create("ObjectId"));
+
+                    try {
+                        String str = new String(Hex.decodeHex(objId.getValue().toHexString().toCharArray()), StandardCharsets.UTF_8);
+                        v.getChildren(nameField).add(Value.create(str));
+                        v.getFirstChild(nameField).getFirstChild("@type").add(Value.create("ObjectId"));
+                    } catch (DecoderException ex) {
+                        Logger.getLogger(MongoDbConnector.class.getName()).log(Level.SEVERE, null, ex);
+                    }
                 }
 
             }
