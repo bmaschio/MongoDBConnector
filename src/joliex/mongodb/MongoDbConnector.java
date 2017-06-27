@@ -9,6 +9,7 @@ import com.mongodb.BasicDBList;
 import com.mongodb.BasicDBObject;
 import com.mongodb.Block;
 import com.mongodb.DBObject;
+import com.mongodb.MongoBulkWriteException;
 import jolie.runtime.JavaService;
 import com.mongodb.MongoClient;
 import com.mongodb.MongoClientOptions;
@@ -231,20 +232,61 @@ public class MongoDbConnector extends JavaService {
     }
 
     @RequestResponse
-    public void insert(Value request) throws FaultException {
+    public Value insert(Value request) throws FaultException {
         try {
-
+            Value v = Value.create();
             String collectionName = request.getFirstChild("collection").strValue();
             BsonDocument bsonDocument = createDocument(request.getFirstChild("document"));
             printlnJson("insert document", bsonDocument);
             db.getCollection(collectionName, BsonDocument.class).insertOne(bsonDocument);
-
+            bsonDocument.get("_id").asObjectId().getValue().toByteArray();
+            
+            String str = new String(Hex.decodeHex(bsonDocument.get("_id").asObjectId().getValue().toHexString().toCharArray()), StandardCharsets.UTF_8);
+            Value objValue = Value.create(str);
+            v.getNewChild("_id").assignValue(objValue);
+            v.getFirstChild("_id").getNewChild("@type").assignValue(Value.create("ObjectID"));
+           
+            return v;
         } catch (MongoException ex) {
             throw new FaultException("MongoException", ex);
         } catch (JsonParseException ex) {
             throw new FaultException("JsonParseException", ex);
+        } catch (DecoderException ex) {
+            throw new FaultException("MongoException", ex);
         }
 
+    }
+    
+    @RequestResponse
+    public Value insertMany(Value request) throws FaultException{
+      try {
+       Value v = Value.create();
+       String collectionName = request.getFirstChild("collection").strValue();
+       List <BsonDocument>documents = new ArrayList();
+       BsonDocument bsonDocument;
+       for (int counterDocuments =0 ; counterDocuments < request.getChildren("document").size(); counterDocuments++ ){
+           bsonDocument = createDocument(request.getChildren("document").get(counterDocuments));
+           documents.add(bsonDocument);
+       }
+
+       db.getCollection(collectionName, BsonDocument.class).insertMany(documents);
+        for (int counterDocuments =0 ; counterDocuments < request.getChildren("document").size(); counterDocuments++ ){
+            String str = new String(Hex.decodeHex(documents.get(counterDocuments).get("_id").asObjectId().getValue().toHexString().toCharArray()), StandardCharsets.UTF_8);
+            Value result = Value.create();
+            result.getNewChild("_id").assignValue(Value.create(str));
+            result.getFirstChild("_id").getNewChild("@type").assignValue(Value.create("ObjectID"));
+            v.getChildren("results").add(result);
+        }
+      
+       return v;
+      } catch (MongoException ex) {
+           throw new FaultException("MongoException", ex);
+      } catch (JsonParseException ex) {
+            throw new FaultException("JsonParseException", ex);
+      } catch (DecoderException ex) {  
+            throw new FaultException("MongoException", ex);
+        }  
+      
     }
 
     @RequestResponse
@@ -260,6 +302,30 @@ public class MongoDbConnector extends JavaService {
         } catch (JsonParseException ex) {
             throw new FaultException("JsonParseException", ex);
         }
+    }
+    
+    @RequestResponse
+    
+    public void updateMany (Value request)throws FaultException{
+      try {
+          String collectionName = request.getFirstChild("collection").strValue();
+          
+          BsonDocument bsonQueryDocument = BsonDocument.parse(request.getFirstChild("filter").strValue());
+            prepareBsonQueryData(bsonQueryDocument, request.getFirstChild("filter"));
+            printlnJson("Update filter", bsonQueryDocument);
+            BsonDocument bsonDocument = BsonDocument.parse(request.getFirstChild("documentUpdate").strValue());
+            printlnJson("Update documentUpdate", bsonDocument);
+            prepareBsonQueryData(bsonDocument, request.getFirstChild("documentUpdate"));
+            printlnJson("Update documentUpdate", bsonDocument);
+          db.getCollection(collectionName, BsonDocument.class).updateMany(bsonQueryDocument, bsonDocument);
+          
+    
+        } catch (MongoException ex) {
+            throw new FaultException("MongoException", ex);
+        } catch (JsonParseException ex) {
+            throw new FaultException("JsonParseException", ex);
+        }
+    
     }
 
     @RequestResponse
@@ -627,7 +693,7 @@ public class MongoDbConnector extends JavaService {
 
                                 if (request.getFirstChild(conditionValueName).hasChildren("@type")) {
 
-                                    if (request.getFirstChild(conditionValueName).getFirstChild("@type").strValue().equals("ObjectId")) {
+                                    if (request.getFirstChild(conditionValueName).getFirstChild("@type").strValue().equals("ObjectID")) {
                                         ObjectId objId = new ObjectId(Hex.encodeHexString(request.getChildren(conditionValueName).get(counter).strValue().getBytes()));
                                         BsonObjectId objToInsert = new BsonObjectId(objId);
                                         condisionArray.add(objToInsert);
@@ -653,7 +719,7 @@ public class MongoDbConnector extends JavaService {
             }
 
             if (bsonQueryDocument.isDocument(keyName)) {
-                System.out.println("Is Document " + keyName);
+               
                 if (!bsonQueryDocument.getDocument(keyName).containsKey("type")) {
 
                     BsonDocument conditionObject = bsonQueryDocument.getDocument(keyName);
@@ -766,7 +832,7 @@ public class MongoDbConnector extends JavaService {
                                     
                                     if (request.getFirstChild(conditionValue).hasChildren()) {
                                         if (request.getFirstChild(conditionValue).hasChildren("@type")) {
-                                            if (request.getFirstChild(conditionValue).getFirstChild("@type").strValue().equals("ObjectId")) {
+                                            if (request.getFirstChild(conditionValue).getFirstChild("@type").strValue().equals("ObjectID")) {
                                                 ObjectId objId = new ObjectId(Hex.encodeHexString(request.getChildren(conditionValue).get(counter).strValue().getBytes()));
                                                 BsonObjectId objToInsert = new BsonObjectId(objId);
                                                 condisionArray.add(objToInsert);
@@ -896,7 +962,7 @@ public class MongoDbConnector extends JavaService {
                                 } else {
                                     bsonArray.add(counterValueVector, bsonObj);
                                 }
-                            } else if (valueVector.get(counterValueVector).getFirstChild("@type").strValue().equals("ObjectId")) {
+                            } else if (valueVector.get(counterValueVector).getFirstChild("@type").strValue().equals("ObjectID")) {
 
                                 ObjectId objId = new ObjectId(Hex.encodeHexString(valueVector.get(counterValueVector).strValue().getBytes()));
 
@@ -1067,7 +1133,7 @@ public class MongoDbConnector extends JavaService {
                         try {
                             String str = new String(Hex.decodeHex(objId.getValue().toHexString().toCharArray()), StandardCharsets.UTF_8);
                             Value objValue = Value.create(str);
-                            objValue.getNewChild("@type").add(Value.create("ObjectId"));
+                            objValue.getNewChild("@type").add(Value.create("ObjectID"));
                             v.getChildren(nameField).add(objValue);
 
                         } catch (DecoderException ex) {
@@ -1096,7 +1162,7 @@ public class MongoDbConnector extends JavaService {
                     try {
                         String str = new String(Hex.decodeHex(objId.getValue().toHexString().toCharArray()), StandardCharsets.UTF_8);
                         v.getChildren(nameField).add(Value.create(str));
-                        v.getFirstChild(nameField).getFirstChild("@type").add(Value.create("ObjectId"));
+                        v.getFirstChild(nameField).getFirstChild("@type").add(Value.create("ObjectID"));
                     } catch (DecoderException ex) {
                         Logger.getLogger(MongoDbConnector.class.getName()).log(Level.SEVERE, null, ex);
                     }

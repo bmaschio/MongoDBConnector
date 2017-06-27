@@ -26,9 +26,25 @@ type InsertRequest:void{
   .document:undefined
 }
 
-type InsertResponse:void
+type InsertResponse:void{
+  ._id:string{
+   ?
+  }
+}
+
+type InsertManyRequest:void{
+  .collection: string
+  .document*:undefined
+}
 
 
+type InsertManyResponse:void{
+   .results*:void{
+     ._id:string{
+      ?
+     }
+   }
+}
 type UpdateRequest:void{
   .collection: string
   .filter:undefined
@@ -36,6 +52,15 @@ type UpdateRequest:void{
 }
 
 type UpdateResponse:void
+
+
+type UpdateManyRequest:void{
+  .collection: string
+  .filter:undefined
+  .documentUpdate:undefined
+}
+
+type UpdateManyResponse:void
 
 type DeleteRequest:void{
   .collection: string
@@ -65,7 +90,9 @@ interface MongoDBInterface {
   connect (ConnectRequest)(ConnectResponse) throws MongoException ,
   query   (QueryRequest)(QueryResponse)   throws MongoException JsonParseException ,
   insert  (InsertRequest)(InsertResponse)   throws MongoException JsonParseException ,
+  insertMany ( InsertManyRequest) (InsertManyResponse) throws MongoException JsonParseException,
   update  (UpdateRequest)(UpdateResponse)   throws MongoException JsonParseException ,
+  updateMany  (UpdateManyRequest)(UpdateManyResponse)   throws MongoException JsonParseException ,
   delete  (DeleteRequest)(DeleteResponse)   throws MongoException JsonParseException ,
   aggregate (AggregateRequest)(AggregateResponse) throws MongoException JsonParseException,
   listCollection(ListCollectionRequest)(ListCollectionResponse) throws MongoException JsonParseException

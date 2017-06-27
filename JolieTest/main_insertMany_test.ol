@@ -30,13 +30,7 @@ getCurrentTimeMillis@Time()(currentTime);
 for (counter = 0, counter<1 , counter++ ){
     getCurrentTimeMillis@Time()(currentTime);
     q.collection = "CustomerSales";
-    with (q.document){
-          .("_id")= "507faa83799c";
-          .("_id").("@type")="ObjectID";
-          .reference.docref[0] = "507faa837999";
-          .reference.docref[0].("@type")="ObjectID";
-          .reference.docref[1] = "507faa837998";
-          .reference.docref[1].("@type")="ObjectID";
+    with (q.document[0]){
           .name    = "Balint";
           .surname = "Maschio";
           .code = "LALA01";
@@ -56,8 +50,16 @@ for (counter = 0, counter<1 , counter++ ){
           }
         };
 
-    insert@MongoDB(q)(responseq);
+        with (q.document[1]){
+              .name    = "Carlo";
+              .surname = "Maschio"
 
+            };
+    valueToPrettyString@StringUtils (q)(s);
+    println@Console("q>>>>"+s)();
+    insertMany@MongoDB(q)(responseq);
+    valueToPrettyString@StringUtils (responseq)(s);
+    println@Console("responseq>>>>"+s)();
 
     undef(q)
 
