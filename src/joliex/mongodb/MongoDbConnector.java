@@ -17,6 +17,7 @@ import com.mongodb.MongoCredential;
 import com.mongodb.MongoException;
 import com.mongodb.ReadConcern;
 import com.mongodb.ServerAddress;
+import com.mongodb.WriteConcern;
 import com.mongodb.client.AggregateIterable;
 
 import com.mongodb.client.FindIterable;
@@ -24,6 +25,11 @@ import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoCursor;
 import com.mongodb.client.MongoDatabase;
 import com.mongodb.client.MongoIterable;
+import com.mongodb.client.model.InsertManyOptions;
+import com.mongodb.client.model.InsertOneOptions;
+import com.mongodb.client.model.UpdateOptions;
+import com.mongodb.client.result.DeleteResult;
+import com.mongodb.client.result.UpdateResult;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import jolie.runtime.CanUseJars;
@@ -37,6 +43,7 @@ import java.util.List;
 import java.util.ListIterator;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import jolie.runtime.ByteArray;
@@ -238,14 +245,42 @@ public class MongoDbConnector extends JavaService {
             String collectionName = request.getFirstChild("collection").strValue();
             BsonDocument bsonDocument = createDocument(request.getFirstChild("document"));
             printlnJson("insert document", bsonDocument);
-            db.getCollection(collectionName, BsonDocument.class).insertOne(bsonDocument);
+
+            if (request.hasChildren("writeConcern")) {
+                WriteConcern writeConcern = new WriteConcern();
+                if (request.getFirstChild("writeConcern").hasChildren("journal")) {
+                    writeConcern.withJournal(request.getFirstChild("writeConcern").getFirstChild("journal").boolValue());
+                }
+                if (request.getFirstChild("writeConcern").hasChildren("w")) {
+                    if (request.getFirstChild("writeConcern").getFirstChild("w").isInt()) {
+                        writeConcern.withW(request.getFirstChild("writeConcern").getFirstChild("w").intValue());
+                    }
+                    if (request.getFirstChild("writeConcern").getFirstChild("w").isString()) {
+                        writeConcern.withW(request.getFirstChild("writeConcern").getFirstChild("w").strValue());
+                    }
+                }
+                if (request.getFirstChild("writeConcern").hasChildren("timeout")) {
+                    writeConcern.withWTimeout(request.getFirstChild("writeConcern").getFirstChild("timeout").longValue(), TimeUnit.MILLISECONDS);
+                }
+
+                db.getCollection(collectionName, BsonDocument.class).withWriteConcern(writeConcern);
+            }
+            if (request.hasChildren("options")) {
+                InsertOneOptions insertOneOptions = new InsertOneOptions();
+                insertOneOptions.bypassDocumentValidation(request.getFirstChild("options").getFirstChild("bypassDocumentValidation").boolValue());
+                db.getCollection(collectionName, BsonDocument.class).insertOne(bsonDocument, insertOneOptions);
+            } else {
+                db.getCollection(collectionName, BsonDocument.class).insertOne(bsonDocument);
+
+            }
+
             bsonDocument.get("_id").asObjectId().getValue().toByteArray();
-            
+
             String str = new String(Hex.decodeHex(bsonDocument.get("_id").asObjectId().getValue().toHexString().toCharArray()), StandardCharsets.UTF_8);
             Value objValue = Value.create(str);
             v.getNewChild("_id").assignValue(objValue);
             v.getFirstChild("_id").getNewChild("@type").assignValue(Value.create("ObjectID"));
-           
+
             return v;
         } catch (MongoException ex) {
             throw new FaultException("MongoException", ex);
@@ -256,81 +291,203 @@ public class MongoDbConnector extends JavaService {
         }
 
     }
-    
-    @RequestResponse
-    public Value insertMany(Value request) throws FaultException{
-      try {
-       Value v = Value.create();
-       String collectionName = request.getFirstChild("collection").strValue();
-       List <BsonDocument>documents = new ArrayList();
-       BsonDocument bsonDocument;
-       for (int counterDocuments =0 ; counterDocuments < request.getChildren("document").size(); counterDocuments++ ){
-           bsonDocument = createDocument(request.getChildren("document").get(counterDocuments));
-           documents.add(bsonDocument);
-       }
 
-       db.getCollection(collectionName, BsonDocument.class).insertMany(documents);
-        for (int counterDocuments =0 ; counterDocuments < request.getChildren("document").size(); counterDocuments++ ){
-            String str = new String(Hex.decodeHex(documents.get(counterDocuments).get("_id").asObjectId().getValue().toHexString().toCharArray()), StandardCharsets.UTF_8);
-            Value result = Value.create();
-            result.getNewChild("_id").assignValue(Value.create(str));
-            result.getFirstChild("_id").getNewChild("@type").assignValue(Value.create("ObjectID"));
-            v.getChildren("results").add(result);
-        }
-      
-       return v;
-      } catch (MongoException ex) {
-           throw new FaultException("MongoException", ex);
-      } catch (JsonParseException ex) {
-            throw new FaultException("JsonParseException", ex);
-      } catch (DecoderException ex) {  
+    @RequestResponse
+    public Value insertMany(Value request) throws FaultException {
+        try {
+            Value v = Value.create();
+            String collectionName = request.getFirstChild("collection").strValue();
+            List<BsonDocument> documents = new ArrayList();
+            BsonDocument bsonDocument;
+            for (int counterDocuments = 0; counterDocuments < request.getChildren("document").size(); counterDocuments++) {
+                bsonDocument = createDocument(request.getChildren("document").get(counterDocuments));
+                documents.add(bsonDocument);
+            }
+            if (request.hasChildren("writeConcern")) {
+                WriteConcern writeConcern = new WriteConcern();
+                if (request.getFirstChild("writeConcern").hasChildren("journal")) {
+                    writeConcern.withJournal(request.getFirstChild("writeConcern").getFirstChild("journal").boolValue());
+                }
+                if (request.getFirstChild("writeConcern").hasChildren("w")) {
+                    if (request.getFirstChild("writeConcern").getFirstChild("w").isInt()) {
+                        writeConcern.withW(request.getFirstChild("writeConcern").getFirstChild("w").intValue());
+                    }
+                    if (request.getFirstChild("writeConcern").getFirstChild("w").isString()) {
+                        writeConcern.withW(request.getFirstChild("writeConcern").getFirstChild("w").strValue());
+                    }
+                }
+                if (request.getFirstChild("writeConcern").hasChildren("timeout")) {
+                    writeConcern.withWTimeout(request.getFirstChild("writeConcern").getFirstChild("timeout").longValue(), TimeUnit.MILLISECONDS);
+                }
+
+                db.getCollection(collectionName, BsonDocument.class).withWriteConcern(writeConcern);
+            }
+            if (request.hasChildren("options")) {
+                InsertManyOptions insertManyOptions = new InsertManyOptions();
+                insertManyOptions.ordered(request.getFirstChild("options").getFirstChild("ordered").boolValue());
+                insertManyOptions.ordered(request.getFirstChild("options").getFirstChild("ordered").boolValue());
+                insertManyOptions.bypassDocumentValidation(request.getFirstChild("options").getFirstChild("bypassDocumentValidation").boolValue());
+                db.getCollection(collectionName, BsonDocument.class).insertMany(documents, insertManyOptions);
+            } else {
+                db.getCollection(collectionName, BsonDocument.class).insertMany(documents);
+
+            };
+            db.getCollection(collectionName, BsonDocument.class).insertMany(documents);
+            for (int counterDocuments = 0; counterDocuments < request.getChildren("document").size(); counterDocuments++) {
+                String str = new String(Hex.decodeHex(documents.get(counterDocuments).get("_id").asObjectId().getValue().toHexString().toCharArray()), StandardCharsets.UTF_8);
+                Value result = Value.create();
+                result.getNewChild("_id").assignValue(Value.create(str));
+                result.getFirstChild("_id").getNewChild("@type").assignValue(Value.create("ObjectID"));
+                v.getChildren("results").add(result);
+            }
+
+            return v;
+        } catch (MongoException ex) {
             throw new FaultException("MongoException", ex);
-        }  
-      
+        } catch (JsonParseException ex) {
+            throw new FaultException("JsonParseException", ex);
+        } catch (DecoderException ex) {
+            throw new FaultException("MongoException", ex);
+        }
+
     }
 
     @RequestResponse
-    public void delete(Value request) throws FaultException {
+    public Value delete(Value request) throws FaultException {
         try {
+            Value v = Value.create();
             String collectionName = request.getFirstChild("collection").strValue();
             BsonDocument bsonQueryDocument = BsonDocument.parse(request.getFirstChild("filter").strValue());
             prepareBsonQueryData(bsonQueryDocument, request.getFirstChild("filter"));
             printlnJson("Delete filter", bsonQueryDocument);
-            db.getCollection(collectionName, BsonDocument.class).deleteMany(bsonQueryDocument);
+            if (request.hasChildren("writeConcern")) {
+                WriteConcern writeConcern = new WriteConcern();
+                if (request.getFirstChild("writeConcern").hasChildren("journal")) {
+                    writeConcern.withJournal(request.getFirstChild("writeConcern").getFirstChild("journal").boolValue());
+                }
+                if (request.getFirstChild("writeConcern").hasChildren("w")) {
+                    if (request.getFirstChild("writeConcern").getFirstChild("w").isInt()) {
+                        writeConcern.withW(request.getFirstChild("writeConcern").getFirstChild("w").intValue());
+                    }
+                    if (request.getFirstChild("writeConcern").getFirstChild("w").isString()) {
+                        writeConcern.withW(request.getFirstChild("writeConcern").getFirstChild("w").strValue());
+                    }
+                }
+                if (request.getFirstChild("writeConcern").hasChildren("timeout")) {
+                    writeConcern.withWTimeout(request.getFirstChild("writeConcern").getFirstChild("timeout").longValue(), TimeUnit.MILLISECONDS);
+                }
+
+                db.getCollection(collectionName, BsonDocument.class).withWriteConcern(writeConcern);
+            }
+
+            DeleteResult resultDelete = db.getCollection(collectionName, BsonDocument.class).deleteOne(bsonQueryDocument);
+            v.getNewChild("deleteCount").add(Value.create(resultDelete.getDeletedCount()));
+            return v;
         } catch (MongoException ex) {
             throw new FaultException("MongoException", ex);
         } catch (JsonParseException ex) {
             throw new FaultException("JsonParseException", ex);
         }
     }
-    
+
     @RequestResponse
-    
-    public void updateMany (Value request)throws FaultException{
-      try {
-          String collectionName = request.getFirstChild("collection").strValue();
-          
-          BsonDocument bsonQueryDocument = BsonDocument.parse(request.getFirstChild("filter").strValue());
+    public Value deleteMany(Value request) throws FaultException {
+        try {
+            Value v = Value.create();
+            String collectionName = request.getFirstChild("collection").strValue();
+            BsonDocument bsonQueryDocument = BsonDocument.parse(request.getFirstChild("filter").strValue());
+            prepareBsonQueryData(bsonQueryDocument, request.getFirstChild("filter"));
+            printlnJson("Delete filter", bsonQueryDocument);
+            if (request.hasChildren("writeConcern")) {
+                WriteConcern writeConcern = new WriteConcern();
+                if (request.getFirstChild("writeConcern").hasChildren("journal")) {
+                    writeConcern.withJournal(request.getFirstChild("writeConcern").getFirstChild("journal").boolValue());
+                }
+                if (request.getFirstChild("writeConcern").hasChildren("w")) {
+                    if (request.getFirstChild("writeConcern").getFirstChild("w").isInt()) {
+                        writeConcern.withW(request.getFirstChild("writeConcern").getFirstChild("w").intValue());
+                    }
+                    if (request.getFirstChild("writeConcern").getFirstChild("w").isString()) {
+                        writeConcern.withW(request.getFirstChild("writeConcern").getFirstChild("w").strValue());
+                    }
+                }
+                if (request.getFirstChild("writeConcern").hasChildren("timeout")) {
+                    writeConcern.withWTimeout(request.getFirstChild("writeConcern").getFirstChild("timeout").longValue(), TimeUnit.MILLISECONDS);
+                }
+
+                db.getCollection(collectionName, BsonDocument.class).withWriteConcern(writeConcern);
+            }
+            DeleteResult resultDelete = db.getCollection(collectionName, BsonDocument.class).deleteMany(bsonQueryDocument);
+
+            v.getNewChild("deletedCount").add(Value.create(resultDelete.getDeletedCount()));
+            return v;
+        } catch (MongoException ex) {
+            throw new FaultException("MongoException", ex);
+        } catch (JsonParseException ex) {
+            throw new FaultException("JsonParseException", ex);
+        }
+    }
+
+    @RequestResponse
+
+    public Value updateMany(Value request) throws FaultException {
+        try {
+            String collectionName = request.getFirstChild("collection").strValue();
+            Value v = Value.create();
+            BsonDocument bsonQueryDocument = BsonDocument.parse(request.getFirstChild("filter").strValue());
             prepareBsonQueryData(bsonQueryDocument, request.getFirstChild("filter"));
             printlnJson("Update filter", bsonQueryDocument);
             BsonDocument bsonDocument = BsonDocument.parse(request.getFirstChild("documentUpdate").strValue());
             printlnJson("Update documentUpdate", bsonDocument);
             prepareBsonQueryData(bsonDocument, request.getFirstChild("documentUpdate"));
             printlnJson("Update documentUpdate", bsonDocument);
-          db.getCollection(collectionName, BsonDocument.class).updateMany(bsonQueryDocument, bsonDocument);
-          
-    
+            if (request.hasChildren("writeConcern")) {
+                WriteConcern writeConcern = new WriteConcern();
+                if (request.getFirstChild("writeConcern").hasChildren("journal")) {
+                    writeConcern.withJournal(request.getFirstChild("writeConcern").getFirstChild("journal").boolValue());
+                }
+                if (request.getFirstChild("writeConcern").hasChildren("w")) {
+                    if (request.getFirstChild("writeConcern").getFirstChild("w").isInt()) {
+                        writeConcern.withW(request.getFirstChild("writeConcern").getFirstChild("w").intValue());
+                    }
+                    if (request.getFirstChild("writeConcern").getFirstChild("w").isString()) {
+                        writeConcern.withW(request.getFirstChild("writeConcern").getFirstChild("w").strValue());
+                    }
+                }
+                if (request.getFirstChild("writeConcern").hasChildren("timeout")) {
+                    writeConcern.withWTimeout(request.getFirstChild("writeConcern").getFirstChild("timeout").longValue(), TimeUnit.MILLISECONDS);
+                }
+
+                db.getCollection(collectionName, BsonDocument.class).withWriteConcern(writeConcern);
+            }
+            if (request.hasChildren("options")) {
+                UpdateOptions updateOptions = new UpdateOptions();
+                updateOptions.upsert(request.getFirstChild("options").getFirstChild("upsert").boolValue());
+                updateOptions.bypassDocumentValidation(request.getFirstChild("options").getFirstChild("bypassDocumentValidation").boolValue());
+                UpdateResult resultUpdate = db.getCollection(collectionName, BsonDocument.class).updateMany(bsonQueryDocument, bsonDocument, updateOptions);
+                v.getNewChild("matchedCount").assignValue(Value.create(resultUpdate.getMatchedCount()));
+                v.getNewChild("modifiedCount").assignValue(Value.create(resultUpdate.getModifiedCount()));
+
+            } else {
+                UpdateResult resultUpdate = db.getCollection(collectionName, BsonDocument.class).updateMany(bsonQueryDocument, bsonDocument);
+                v.getNewChild("matchedCount").assignValue(Value.create(resultUpdate.getMatchedCount()));
+                v.getNewChild("modifiedCount").assignValue(Value.create(resultUpdate.getModifiedCount()));
+            }
+
+            return v;
+
         } catch (MongoException ex) {
             throw new FaultException("MongoException", ex);
         } catch (JsonParseException ex) {
             throw new FaultException("JsonParseException", ex);
         }
-    
+
     }
 
     @RequestResponse
-    public void update(Value request) throws FaultException {
+    public Value update(Value request) throws FaultException {
         try {
+            Value v = Value.create();
             String collectionName = request.getFirstChild("collection").strValue();
             BsonDocument bsonQueryDocument = BsonDocument.parse(request.getFirstChild("filter").strValue());
             prepareBsonQueryData(bsonQueryDocument, request.getFirstChild("filter"));
@@ -340,7 +497,41 @@ public class MongoDbConnector extends JavaService {
             prepareBsonQueryData(bsonDocument, request.getFirstChild("documentUpdate"));
             printlnJson("Update documentUpdate", bsonDocument);
             showLog();
-            db.getCollection(collectionName, BsonDocument.class).updateMany(bsonQueryDocument, bsonDocument);
+
+            if (request.hasChildren("writeConcern")) {
+                WriteConcern writeConcern = new WriteConcern();
+                if (request.getFirstChild("writeConcern").hasChildren("journal")) {
+                    writeConcern.withJournal(request.getFirstChild("writeConcern").getFirstChild("journal").boolValue());
+                }
+                if (request.getFirstChild("writeConcern").hasChildren("w")) {
+                    if (request.getFirstChild("writeConcern").getFirstChild("w").isInt()) {
+                        writeConcern.withW(request.getFirstChild("writeConcern").getFirstChild("w").intValue());
+                    }
+                    if (request.getFirstChild("writeConcern").getFirstChild("w").isString()) {
+                        writeConcern.withW(request.getFirstChild("writeConcern").getFirstChild("w").strValue());
+                    }
+                }
+                if (request.getFirstChild("writeConcern").hasChildren("timeout")) {
+                    writeConcern.withWTimeout(request.getFirstChild("writeConcern").getFirstChild("timeout").longValue(), TimeUnit.MILLISECONDS);
+                }
+
+                db.getCollection(collectionName, BsonDocument.class).withWriteConcern(writeConcern);
+            }
+            if (request.hasChildren("options")) {
+                UpdateOptions updateOptions = new UpdateOptions();
+                updateOptions.upsert(request.getFirstChild("options").getFirstChild("upsert").boolValue());
+                updateOptions.bypassDocumentValidation(request.getFirstChild("options").getFirstChild("bypassDocumentValidation").boolValue());
+                UpdateResult resultUpdate = db.getCollection(collectionName, BsonDocument.class).updateOne(bsonQueryDocument, bsonDocument, updateOptions);
+                v.getNewChild("matchedCount").assignValue(Value.create(resultUpdate.getMatchedCount()));
+                v.getNewChild("modifiedCount").assignValue(Value.create(resultUpdate.getModifiedCount()));
+
+            } else {
+                UpdateResult resultUpdate = db.getCollection(collectionName, BsonDocument.class).updateOne(bsonQueryDocument, bsonDocument);
+                v.getNewChild("matchedCount").assignValue(Value.create(resultUpdate.getMatchedCount()));
+                v.getNewChild("modifiedCount").assignValue(Value.create(resultUpdate.getModifiedCount()));
+            }
+            return v;
+
         } catch (MongoException ex) {
             throw new FaultException("MongoException", ex);
         } catch (JsonParseException ex) {
@@ -719,7 +910,7 @@ public class MongoDbConnector extends JavaService {
             }
 
             if (bsonQueryDocument.isDocument(keyName)) {
-               
+
                 if (!bsonQueryDocument.getDocument(keyName).containsKey("type")) {
 
                     BsonDocument conditionObject = bsonQueryDocument.getDocument(keyName);
@@ -812,24 +1003,24 @@ public class MongoDbConnector extends JavaService {
                             } else {
                                 BsonArray condisionArray = new BsonArray();
                                 for (int counter = 0; counter < request.getChildren(conditionValue).size(); counter++) {
-                                    if (request.getChildren(conditionValue).get(counter).isInt()){
+                                    if (request.getChildren(conditionValue).get(counter).isInt()) {
                                         if (is64) {
-                                          BsonInt64 objToInsert = new BsonInt64(request.getChildren(conditionValue).get(counter).intValue());
-                                          condisionArray.add(objToInsert);
+                                            BsonInt64 objToInsert = new BsonInt64(request.getChildren(conditionValue).get(counter).intValue());
+                                            condisionArray.add(objToInsert);
                                         } else {
-                                          BsonInt32 objToInsert = new BsonInt32 (request.getChildren(conditionValue).get(counter).intValue());
-                                          condisionArray.add(objToInsert);
+                                            BsonInt32 objToInsert = new BsonInt32(request.getChildren(conditionValue).get(counter).intValue());
+                                            condisionArray.add(objToInsert);
                                         }
                                     }
-                                    if (request.getChildren(conditionValue).get(counter).isDouble()){
+                                    if (request.getChildren(conditionValue).get(counter).isDouble()) {
                                         BsonDouble objToInsert = new BsonDouble(request.getChildren(conditionValue).get(counter).doubleValue());
                                         condisionArray.add(objToInsert);
                                     }
-                                    if (request.getChildren(conditionValue).get(counter).isString()){
-                                        BsonString objToInsert = new BsonString (request.getChildren(conditionValue).get(counter).strValue());
+                                    if (request.getChildren(conditionValue).get(counter).isString()) {
+                                        BsonString objToInsert = new BsonString(request.getChildren(conditionValue).get(counter).strValue());
                                         condisionArray.add(objToInsert);
                                     }
-                                    
+
                                     if (request.getFirstChild(conditionValue).hasChildren()) {
                                         if (request.getFirstChild(conditionValue).hasChildren("@type")) {
                                             if (request.getFirstChild(conditionValue).getFirstChild("@type").strValue().equals("ObjectID")) {
@@ -843,9 +1034,8 @@ public class MongoDbConnector extends JavaService {
                                     }
 
                                 }
-                                
+
                                 conditionObject.put(conditionName, condisionArray);
-                                
 
                             }
                             if (conditionObject.get(conditionName).isDocument()) {

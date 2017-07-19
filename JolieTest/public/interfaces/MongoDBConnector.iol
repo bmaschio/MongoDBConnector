@@ -51,7 +51,10 @@ type UpdateRequest:void{
   .documentUpdate:undefined
 }
 
-type UpdateResponse:void
+type UpdateResponse:void{
+  .matchedCount:long
+  .modifiedCount:long
+}
 
 
 type UpdateManyRequest:void{
@@ -60,14 +63,19 @@ type UpdateManyRequest:void{
   .documentUpdate:undefined
 }
 
-type UpdateManyResponse:void
+type UpdateManyResponse:void{
+   .matchedCount:long
+   .modifiedCount:long
+}
 
 type DeleteRequest:void{
   .collection: string
   .filter?:undefined
 }
 
-type DeleteResponse:void
+type DeleteResponse:void{
+  .deletedCount:long
+}
 
 type AggregateRequest:void{
     .collection: string
@@ -94,6 +102,7 @@ interface MongoDBInterface {
   update  (UpdateRequest)(UpdateResponse)   throws MongoException JsonParseException ,
   updateMany  (UpdateManyRequest)(UpdateManyResponse)   throws MongoException JsonParseException ,
   delete  (DeleteRequest)(DeleteResponse)   throws MongoException JsonParseException ,
+  deleteMany  (DeleteRequest)(DeleteResponse)   throws MongoException JsonParseException ,
   aggregate (AggregateRequest)(AggregateResponse) throws MongoException JsonParseException,
   listCollection(ListCollectionRequest)(ListCollectionResponse) throws MongoException JsonParseException
 }
