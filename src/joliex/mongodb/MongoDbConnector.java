@@ -16,6 +16,7 @@ import com.mongodb.MongoClientOptions;
 import com.mongodb.MongoCredential;
 import com.mongodb.MongoException;
 import com.mongodb.ReadConcern;
+import com.mongodb.ReadConcernLevel;
 import com.mongodb.ServerAddress;
 import com.mongodb.WriteConcern;
 import com.mongodb.client.AggregateIterable;
@@ -155,6 +156,11 @@ public class MongoDbConnector extends JavaService {
 
             String collectionName = request.getFirstChild("collection").strValue();
             MongoCollection<BsonDocument> collection = db.getCollection(collectionName, BsonDocument.class);
+            if (request.hasChildren("readConcern")){
+                ReadConcern readConcern = new ReadConcern(ReadConcernLevel.fromString(request.getFirstChild("readConcern").strValue()));
+                collection.withReadConcern(readConcern);
+            }
+            
             if (request.hasChildren("filter")) {
                 BsonDocument bsonQueryDocument = BsonDocument.parse(request.getFirstChild("filter").strValue());
                 prepareBsonQueryData(bsonQueryDocument, request.getFirstChild("filter"));
@@ -756,6 +762,11 @@ public class MongoDbConnector extends JavaService {
         Value v = Value.create();
         ArrayList<BsonDocument> bsonAggreagationDocuments = new ArrayList<>();
         String collectionName = request.getFirstChild("collection").strValue();
+        MongoCollection<BsonDocument> collection = db.getCollection(collectionName, BsonDocument.class);
+        if (request.hasChildren("readConcern")){
+                ReadConcern readConcern = new ReadConcern(ReadConcernLevel.fromString(request.getFirstChild("readConcern").strValue()));
+                collection.withReadConcern(readConcern);
+         }
         for (int counter = 0; counter < request.getChildren("filter").size(); counter++) {
             BsonDocument bsonAggregationDocument = BsonDocument.parse(request.getChildren("filter").get(counter).strValue());
             prepareBsonQueryData(bsonAggregationDocument, request.getChildren("filter").get(counter));
@@ -1342,7 +1353,7 @@ public class MongoDbConnector extends JavaService {
                 if (nameField.equals("_id")) {
                     try {
                         String str = new String(Hex.decodeHex(objId.getValue().toHexString().toCharArray()), StandardCharsets.UTF_8);
-                        v.add(Value.create(str));
+                        v.getNewChild("_id").add(Value.create(str));
                     } catch (DecoderException ex) {
                         Logger.getLogger(MongoDbConnector.class.getName()).log(Level.SEVERE, null, ex);
                     }

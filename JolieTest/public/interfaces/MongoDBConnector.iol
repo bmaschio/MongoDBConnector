@@ -16,6 +16,7 @@ type QueryRequest:void{
    .filter?:undefined
    .sort?:undefined
    .limit?: int
+   .readConcern?:string
 }
 
 type QueryResponse:void{
@@ -24,6 +25,11 @@ type QueryResponse:void{
 type InsertRequest:void{
   .collection: string
   .document:undefined
+  .writeConcern?: void{
+     .w?:any
+     .journal?: bool
+     .timeout:long
+  }
 }
 
 type InsertResponse:void{
