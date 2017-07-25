@@ -1,12 +1,13 @@
-include "console.iol"
+
 include "./public/interfaces/MongoDbConnector.iol"
 include "string_utils.iol"
 include "time.iol"
 include "file.iol"
+include "console.iol"
 
 init{
 
-    connectValue.host = "localhost";
+    connectValue.host = "10.101.50.107";
     connectValue.dbname ="ClientData";
     connectValue.port = 27017;
     connectValue.jsonStringDebug = false;
@@ -21,21 +22,31 @@ init{
 
 main {
 scope (InsertMongoTest){
-  install (default => valueToPrettyString@StringUtils(InsertMongoTest)(s));
+  install (default => valueToPrettyString@StringUtils(InsertMongoTest)(s);
+          valueToPrettyString@StringUtils(__responseSplitRowContent)(s1);
+          println@Console(s1)();
+           println@Console(s )());
 
            requestReadFile.filename =  "mail.csv";
            readFile@File(requestReadFile)(responseReadFile);
            requestSplitFileContent =responseReadFile;
            requestSplitFileContent.regex = "\\r\\n";
            split@StringUtils(requestSplitFileContent)(__responseSplitFileContent);
-           for (counter =12927 , counter < #__responseSplitFileContent.result, counter++  ){
+           for (counter = 1 , counter < #__responseSplitFileContent.result, counter++  ){
              requestSplitRowContent =__responseSplitFileContent.result[counter];
+
              requestSplitRowContent.regex = ";";
              q.collection = "Contact";
              //q.writeConcern.w = 1;
              split@StringUtils(requestSplitRowContent)(__responseSplitRowContent);
+
              with (q.document){
-               .regione = __responseSplitRowContent.result[1];
+               if (__responseSplitRowContent.result[1] != ""){
+               trim@StringUtils(__responseSplitRowContent.result[1])(trimmedRegValue);
+               toUpperCase@StringUtils(trimmedRegValue)(upperCaseRegValue);
+               .regione = upperCaseRegValue
+
+             };
                .status = __responseSplitRowContent.result[2];
                if (__responseSplitRowContent.result[3]!=""){
                   .intestazione = __responseSplitRowContent.result[3]
@@ -54,11 +65,20 @@ scope (InsertMongoTest){
                if (__responseSplitRowContent.result[9]!=""){
                   .cap = __responseSplitRowContent.result[9]
                };
-               if (__responseSplitRowContent.result[10]!=""){
-                  .citta = __responseSplitRowContent.result[10]
+               if ((__responseSplitRowContent.result[10]!="")){
+                 if (is_defined(__responseSplitRowContent.result[10])){
+                    trim@StringUtils(__responseSplitRowContent.result[10])(trimmedCitValue);
+                    toUpperCase@StringUtils(trimmedCitValue)(upperCaseCitValue);
+                    .citta = upperCaseCitValue
+                 }
                };
-               if (__responseSplitRowContent.result[11]!=""){
-                  .prov = __responseSplitRowContent.result[11]
+
+               if ((__responseSplitRowContent.result[11]!="")){
+                  if (is_defined(__responseSplitRowContent.result[11])){
+                      trim@StringUtils(__responseSplitRowContent.result[11])(trimmedProvValue);
+                      toUpperCase@StringUtils(trimmedProvValue)(upperCaseProvValue);
+                      .prov = upperCaseProvValue
+                }
                };
                if (__responseSplitRowContent.result[12]!=""){
                   .tel = __responseSplitRowContent.result[12]
@@ -67,9 +87,10 @@ scope (InsertMongoTest){
                   .mail = __responseSplitRowContent.result[14]
                }
              };
-          insert@MongoDB(q)(responseq);
-          undef (q)
+           insert@MongoDB(q)(responseq);
+           undef(q)
       }
+
 
 }
 }
