@@ -20,34 +20,24 @@ public class Test {
         
         MongoDbConnector mongoDbConnector = new MongoDbConnector();
         Value connectValue = Value.create();
-        connectValue.getNewChild("host").add(Value.create("10.101.50.107"));
-        connectValue.getNewChild("dbname").add(Value.create("Maintance"));
+        connectValue.getNewChild("host").add(Value.create("localhost"));
+        connectValue.getNewChild("dbname").add(Value.create("testData"));
         connectValue.getFirstChild("timeZone").add(Value.create("Europe/Berlin"));
         connectValue.getNewChild("port").add(Value.create(27017));
-        connectValue.getNewChild("password").add(Value.create("password"));
-        connectValue.getNewChild("username").add(Value.create("monrif"));
+        connectValue.getNewChild("password").add(Value.create("prova"));
+        connectValue.getNewChild("username").add(Value.create("prova"));
         connectValue.getNewChild("jsonStringDebug").add(Value.create(Boolean.TRUE));
         mongoDbConnector.connect(connectValue);
 
        
       
-       Value InsertValue = Value.create();
-        InsertValue.getNewChild("collection").add(Value.create("prove"));
-        InsertValue.getNewChild("document");
-        InsertValue.getFirstChild("document").getChildren("nome").add(Value.create("Mark"));
-        InsertValue.getFirstChild("document").getChildren("cognome").add(Value.create("Green"));
-        long l = 10000000;
-        InsertValue.getFirstChild("document").getChildren("age").add(Value.create(l));
-         InsertValue.getFirstChild("document").getFirstChild("age").getChildren("@type").add(Value.create("Date"));
-        InsertValue.getFirstChild("document").getNewChild("spese").getChildren("ammount").add(Value.create(10.2));
-        InsertValue.getFirstChild("document").getNewChild("spese").getChildren("ammount").add(Value.create(10.3));
-        mongoDbConnector.insert(InsertValue);
+;
  
         Value queryValue = Value.create();
         queryValue.getNewChild("collection").add(Value.create("CustomerSales"));
         
         
-       queryValue.getChildren("filter").get(0).add(Value.create("{$group:{ _id : '$name', total:{$sum : 1}}}"));
+       queryValue.getChildren("filter").get(0).add(Value.create("{$group:{ _id : '$name', total:{$sum : '$ammount'}}}"));
 //
        // queryValue.getFirstChild("query").getChildren("ammount").add(Value.create(30.0));
 

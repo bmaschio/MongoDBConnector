@@ -2,27 +2,27 @@ include "console.iol"
 include "./public/interfaces/MongoDbConnector.iol"
 include "string_utils.iol"
 
-init{
-    scope (ConnectionMongoDbScope){
-      install (default => valueToPrettyString@StringUtils(ConnectionMongoDbScope)();
-               println@Console(s)()
-               );
-      with (connectValue){
-          .host = "localhost";
-          .dbname ="prova";
-          .port = 27017;
 
-          .jsonStringDebug = true
-        };
+  init{
+
+      connectValue.host = "localhost";
+      connectValue.dbname ="testData";
+      connectValue.port = 27017;
+      connectValue.jsonStringDebug = true;
+      connectValue.timeZone = "Europe/Berlin";
+      connectValue.username = "prova";
+      connectValue.password = "prova";
+      connectValue.logStreamDebug = true;
       connect@MongoDB(connectValue)()
+
   }
 
-}
+
 
 main {
 
 q.collection = "CustomerSales";
-q.filter = "{$group:{ _id : '$name', total:{$sum : 1}}}";
+q.filter = "{$group:{ _id : '$name', total:{$sum : '$ammount'}}}";
 
 
 valueToPrettyString@StringUtils (q)(s);

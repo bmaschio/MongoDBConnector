@@ -793,15 +793,14 @@ public class MongoDbConnector extends JavaService {
 
         while (iteratorKeySet.hasNext()) {
             String keyName = iteratorKeySet.next();
-            System.out.println(keyName);
+            
             if (bsonQueryDocument.isString(keyName)) {
-
                 BsonString conditionValue = bsonQueryDocument.getString(keyName);
-                System.out.println(conditionValue.getValue());
+    
                 if (conditionValue.getValue().startsWith("$")) {
                     String conditionValueName = conditionValue.getValue().substring(1);
                     System.out.println(conditionValueName + " " + request.getChildren(conditionValueName).size());
-                    if (request.getChildren(conditionValueName).size() == 1) {
+                    if (request.getChildren(conditionValueName).size() < 1) {
                         if (request.getFirstChild(conditionValueName).isInt()) {
 
                             if (is64) {
@@ -955,9 +954,12 @@ public class MongoDbConnector extends JavaService {
 
                             }
                             conditionObject.append(conditionName, supportListValueCondition);
-                        } else {
+                        } else if (conditionObject.isDocument(conditionName)){
+
+                         prepareBsonQueryData(conditionObject.get(conditionName).asDocument(), request);
+                        }else {
                             String conditionValue = conditionObject.getString(conditionName).getValue().substring(1);
-                            if (request.getChildren(conditionValue).size() == 1) {
+                            if (request.getChildren(conditionValue).size() <=1 ) {
                                 if (conditionObject.get(conditionName).isString()) {
 
                                     if (request.getFirstChild(conditionValue).isInt()) {
@@ -1202,6 +1204,14 @@ public class MongoDbConnector extends JavaService {
                                 }
                             }
 
+                        }
+                        if (valueVector.get(counterValueVector).isByteArray()) {
+                            BsonBinary bsonObj = new BsonBinary (valueVector.get(counterValueVector).byteArrayValue().getBytes());
+                             if (valueVector.size() == 1) {
+                                bsonDocument.append(entry.getKey(), bsonObj);
+                            } else {
+                                bsonArray.add(counterValueVector, bsonObj);
+                            }
                         }
                         if (valueVector.get(counterValueVector).isDouble()) {
                            // addLog("createDocument>>> valueVector.get(counterValueVector).isDouble() ");
