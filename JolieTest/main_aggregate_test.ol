@@ -5,15 +5,15 @@ include "string_utils.iol"
 
   init{
 
-      connectValue.host = "localhost";
-      connectValue.dbname ="testData";
-      connectValue.port = 27017;
-      connectValue.jsonStringDebug = true;
-      connectValue.timeZone = "Europe/Berlin";
-      connectValue.username = "prova";
-      connectValue.password = "prova";
-      connectValue.logStreamDebug = true;
-      connect@MongoDB(connectValue)()
+    connectValue.host = "10.101.50.107";
+    connectValue.dbname ="ClientData";
+    connectValue.port = 27017;
+    connectValue.jsonStringDebug = true;
+    connectValue.timeZone = "Europe/Berlin";
+    connectValue.username = "prova";
+    connectValue.password = "prova";
+    connectValue.logStreamDebug = true;
+    connect@MongoDB(connectValue)()
 
   }
 
@@ -21,8 +21,9 @@ include "string_utils.iol"
 
 main {
 
-q.collection = "CustomerSales";
-q.filter = "{$group:{ _id : '$name', total:{$sum : '$ammount'}}}";
+q.collection = "Contact";
+q.filter[0] = "{$match:{'company.address.reg':'TOSCANA'}} ";
+q.filter[1] = "{$group:{ _id : '$company.address.cit', total:{$sum : 1}, prov: 'company.address.prov' }}";
 
 
 valueToPrettyString@StringUtils (q)(s);

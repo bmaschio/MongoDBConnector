@@ -20,8 +20,8 @@ public class Test {
         
         MongoDbConnector mongoDbConnector = new MongoDbConnector();
         Value connectValue = Value.create();
-        connectValue.getNewChild("host").add(Value.create("localhost"));
-        connectValue.getNewChild("dbname").add(Value.create("testData"));
+        connectValue.getNewChild("host").add(Value.create("10.101.50.107"));
+        connectValue.getNewChild("dbname").add(Value.create("ClientData"));
         connectValue.getFirstChild("timeZone").add(Value.create("Europe/Berlin"));
         connectValue.getNewChild("port").add(Value.create(27017));
         connectValue.getNewChild("password").add(Value.create("prova"));
@@ -34,10 +34,10 @@ public class Test {
 ;
  
         Value queryValue = Value.create();
-        queryValue.getNewChild("collection").add(Value.create("CustomerSales"));
+        queryValue.getNewChild("collection").add(Value.create("Contact"));
         
         
-       queryValue.getChildren("filter").get(0).add(Value.create("{$group:{ _id : '$name', total:{$sum : '$ammount'}}}"));
+       queryValue.getChildren("filter").get(0).add(Value.create("{$group:{ _id : '$company.address.prov', total:{$sum : 1}}}"));
 //
        // queryValue.getFirstChild("query").getChildren("ammount").add(Value.create(30.0));
 
