@@ -234,6 +234,7 @@ public class MongoDbConnector extends JavaService {
             showLog();
         } catch (MongoException ex) {
             showLog();
+          
             throw new FaultException("MongoException", ex);
 
         } catch (JsonParseException ex) {
@@ -799,8 +800,8 @@ public class MongoDbConnector extends JavaService {
 
                 if (conditionValue.getValue().startsWith("$")) {
                     String conditionValueName = conditionValue.getValue().substring(1);
-                    System.out.println(conditionValueName + " " + request.getChildren(conditionValueName).size());
-                    if (request.getChildren(conditionValueName).size() < 1) {
+               
+                    if (request.getChildren(conditionValueName).size() <= 1) {
                         if (request.getFirstChild(conditionValueName).isInt()) {
 
                             if (is64) {
@@ -911,7 +912,7 @@ public class MongoDbConnector extends JavaService {
 
             }
             if (bsonQueryDocument.isArray(keyName)) {
-                BsonArray array = bsonQueryDocument.getArray(keySet);
+                BsonArray array = bsonQueryDocument.getArray(keyName);
                 ListIterator<BsonValue> listIterator = array.listIterator();
 
                 while (listIterator.hasNext()) {

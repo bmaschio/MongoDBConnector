@@ -7,6 +7,7 @@
             <file>jar:file:/C:/Users/maschio/Documents/GitHub/MongoDBConnector/supportLibraies/mongodb-driver-3.2.2-sources.jar!/com/mongodb/OperationIterable.java</file>
             <file>file:/C:/Users/maschio/Documents/GitHub/MongoDBConnector/src/joliex/mongodb/MongoDbConnector.java</file>
             <file>jar:file:/C:/Users/maschio/Documents/GitHub/MongoDBConnector/supportLibraies/mongo-java-driver-3.2.2-sources.jar!/org/bson/BsonArray.java</file>
+            <file>jar:file:/C:/Users/maschio/Documents/GitHub/MongoDBConnector/supportLibraies/mongodb-driver-core-3.2.2-sources.jar!/com/mongodb/MongoException.java</file>
             <file>file:/C:/Users/maschio/Documents/GitHub/MongoDBConnector/src/test/Test.java</file>
         </group>
     </open-files>
