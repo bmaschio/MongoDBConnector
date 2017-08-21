@@ -31,6 +31,7 @@ import com.mongodb.client.model.InsertOneOptions;
 import com.mongodb.client.model.UpdateOptions;
 import com.mongodb.client.result.DeleteResult;
 import com.mongodb.client.result.UpdateResult;
+import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import jolie.runtime.CanUseJars;
@@ -50,6 +51,7 @@ import java.util.logging.Logger;
 import jolie.runtime.ByteArray;
 import jolie.runtime.FaultException;
 import jolie.runtime.ValueVector;
+import jolie.runtime.typing.TypeCastingException;
 import org.apache.commons.codec.DecoderException;
 import org.bson.BsonArray;
 import org.bson.BsonBinary;
@@ -283,7 +285,7 @@ public class MongoDbConnector extends JavaService {
 
             bsonDocument.get("_id").asObjectId().getValue().toByteArray();
 
-            String str = new String(Hex.decodeHex(bsonDocument.get("_id").asObjectId().getValue().toHexString().toCharArray()), StandardCharsets.UTF_8);
+            String str = new String(bsonDocument.get("_id").asObjectId().getValue().toHexString());
             Value objValue = Value.create(str);
             v.getNewChild("_id").assignValue(objValue);
             v.getFirstChild("_id").getNewChild("@type").assignValue(Value.create("ObjectID"));
@@ -293,8 +295,6 @@ public class MongoDbConnector extends JavaService {
             throw new FaultException("MongoException", ex);
         } catch (JsonParseException ex) {
             throw new FaultException("JsonParseException", ex);
-        } catch (DecoderException ex) {
-            throw new FaultException("MongoException", ex);
         }
 
     }
@@ -1167,15 +1167,22 @@ public class MongoDbConnector extends JavaService {
                                     bsonArray.add(counterValueVector, bsonObj);
                                 }
                             } else if (valueVector.get(counterValueVector).getFirstChild("@type").strValue().equals("ObjectID")) {
+                          
+                                ObjectId objId;
+                                try {
+                                    objId = new ObjectId(valueVector.get(counterValueVector).strValueStrict());
+                                    BsonObjectId bsonObj = new BsonObjectId(objId);
+                           
 
-                                ObjectId objId = new ObjectId(Hex.encodeHexString(valueVector.get(counterValueVector).strValue().getBytes()));
-
-                                BsonObjectId bsonObj = new BsonObjectId(objId);
+                                
                                 if (valueVector.size() == 1) {
 
                                     bsonDocument.append(entry.getKey(), bsonObj);
                                 } else {
                                     bsonArray.add(counterValueVector, bsonObj);
+                                }     
+                                } catch (TypeCastingException ex) {
+                                    Logger.getLogger(MongoDbConnector.class.getName()).log(Level.SEVERE, null, ex);
                                 }
                             } else {
                                 throw new FaultException("ComplexTypeNotSupported");
@@ -1301,22 +1308,19 @@ public class MongoDbConnector extends JavaService {
                 BsonObjectId objId;
                 objId = document.getObjectId(nameField);
                 if (nameField.equals("_id")) {
-                    try {
-                        String str = new String(Hex.decodeHex(objId.getValue().toHexString().toCharArray()), StandardCharsets.UTF_8);
+                 
+                        String str;
+                        System.out.println("Lenght" + objId.getValue().toByteArray().length);
+                        str = objId.getValue().toHexString();
                         v.getNewChild("_id").add(Value.create(str));
-                    } catch (DecoderException ex) {
-                        Logger.getLogger(MongoDbConnector.class.getName()).log(Level.SEVERE, null, ex);
-                    }
+
 
                 } else {
-
-                    try {
-                        String str = new String(Hex.decodeHex(objId.getValue().toHexString().toCharArray()), StandardCharsets.UTF_8);
+                        System.out.println("Lenght" + objId.getValue().toByteArray().length);
+                        String str = objId.getValue().toHexString();
                         v.getChildren(nameField).add(Value.create(str));
                         v.getFirstChild(nameField).getFirstChild("@type").add(Value.create("ObjectID"));
-                    } catch (DecoderException ex) {
-                        Logger.getLogger(MongoDbConnector.class.getName()).log(Level.SEVERE, null, ex);
-                    }
+                 
                 }
             } else {
                 v.getChildren(nameField).add(ProcessQueryBsonValue(document.get(nameField)));
@@ -1385,14 +1389,13 @@ public class MongoDbConnector extends JavaService {
         } else if (bsonValue instanceof BsonObjectId) {
             BsonObjectId objId = BsonObjectId.class
                     .cast(bsonValue);
-            try {
-                String str = new String(Hex.decodeHex(objId.getValue().toHexString().toCharArray()), StandardCharsets.UTF_8);
+          
+                System.out.println(objId.getValue().toByteArray().length);
+                String str = new String(objId.getValue().toHexString());
                 v = Value.create(str);
                 v.getNewChild("@type").add(Value.create("ObjectID"));
 
-            } catch (DecoderException ex) {
-                Logger.getLogger(MongoDbConnector.class.getName()).log(Level.SEVERE, null, ex);
-            }
+      
 
         }
         return v;
