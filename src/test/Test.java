@@ -34,14 +34,18 @@ public class Test {
 ;
  
         Value queryValue = Value.create();
-        queryValue.getNewChild("collection").add(Value.create("Contact"));
-        
-        
-       queryValue.getChildren("filter").get(0).add(Value.create("{ $or : [{ammount:{gt: 9.0}},{ammount:{lt: '11.0'}}]}"));
-       
-
-         Value v = mongoDbConnector.query(queryValue);
-         System.out.println();
+        queryValue.getNewChild("collection").add(Value.create("contact"));      
+       // queryValue.getChildren("filter").get(0).add(Value.create("{name : '$name' }"));
+       /*queryValue.getChildren("filter").get(0).add(Value.create("{name : {$in : '$name'}}"));
+        queryValue.getChildren("filter").get(0).getNewChild("name").add(Value.create("balint"));
+        queryValue.getChildren("filter").get(0).getChildren("name").add(Value.create("carlo"));
+       */
+       queryValue.getChildren("filter").get(0).add(Value.create("{_id : '$_id' }"));
+       queryValue.getChildren("filter").get(0).getNewChild("_id").add(Value.create("59b81c891af86d706f5458bf"));
+       queryValue.getChildren("filter").get(0).getFirstChild("_id").getNewChild("@type").add(Value.create("ObjectId"));
+       Value v = mongoDbConnector.query(queryValue);
+         
+       System.out.println();
             
     }
     
