@@ -11,7 +11,7 @@ type ConnectRequest:void{
 
 type ConnectResponse: void
 
-type QueryRequest:void{
+type FindRequest:void{
    .collection: string
    .filter?:undefined
    .sort?:undefined
@@ -19,7 +19,7 @@ type QueryRequest:void{
    .readConcern?:string
 }
 
-type QueryResponse:void{
+type FindResponse:void{
    .document*: undefined
 }
 type InsertRequest:void{
@@ -102,7 +102,7 @@ type ListCollectionResponse:void{
 interface MongoDBInterface {
   RequestResponse:
   connect (ConnectRequest)(ConnectResponse) throws MongoException ,
-  query   (QueryRequest)(QueryResponse)   throws MongoException JsonParseException ,
+  find   (FindRequest)(FindResponse)   throws MongoException JsonParseException ,
   insert  (InsertRequest)(InsertResponse)   throws MongoException JsonParseException ,
   insertMany ( InsertManyRequest) (InsertManyResponse) throws MongoException JsonParseException,
   update  (UpdateRequest)(UpdateResponse)   throws MongoException JsonParseException ,
@@ -122,3 +122,10 @@ embedded {
 Java:
 	"joliex.mongodb.MongoDbConnector" in MongoDB
 }
+
+
+transaction security >> transaction security
+
+pre constructed shop
+
+

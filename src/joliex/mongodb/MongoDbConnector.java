@@ -8,8 +8,9 @@ package joliex.mongodb;
 import com.mongodb.BasicDBList;
 import com.mongodb.BasicDBObject;
 import com.mongodb.Block;
+
 import com.mongodb.DBObject;
-import com.mongodb.MongoBulkWriteException;
+
 import jolie.runtime.JavaService;
 import com.mongodb.MongoClient;
 import com.mongodb.MongoClientOptions;
@@ -31,6 +32,8 @@ import com.mongodb.client.model.InsertOneOptions;
 import com.mongodb.client.model.UpdateOptions;
 import com.mongodb.client.result.DeleteResult;
 import com.mongodb.client.result.UpdateResult;
+
+
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
@@ -77,9 +80,9 @@ import org.apache.commons.codec.binary.Hex;
  * @author maschio
  */
 @CanUseJars({
-    "mongo-java-driver-3.2.2.jar",
-    "mongodb-driver-3.2.2.jar",
-    "mongodb-driver-core-3.2.2.jar",
+    "mongo-java-driver-3.6.3.jar",
+    "mongodb-driver-3.6.3.jar",
+    "mongodb-driver-core-3.6.3.jar",
     "joda-time-2.4.jar",
     "commons-codec-1.10.jar"
 })
@@ -128,14 +131,16 @@ public class MongoDbConnector extends JavaService {
             zone = DateTimeZone.forID(timeZone);
 
             ServerAddress serverAddress = new ServerAddress(host, port);
-            ArrayList<MongoCredential> credentials = new ArrayList();
             MongoCredential credential = MongoCredential.createCredential(username, dbname, password.toCharArray());
-            credentials.add(credential);
+            mongoClientOptions = MongoClientOptions.builder().build();
+            
+            
             if (null != mongoClient) {
                 System.out.println("recovering client");
                 db = mongoClient.getDatabase(dbname);
             } else {
-                mongoClient = new MongoClient(serverAddress, credentials);
+                
+                mongoClient = new MongoClient(serverAddress, credential, mongoClientOptions);
                 db = mongoClient.getDatabase(dbname);
             }
 
@@ -150,15 +155,16 @@ public class MongoDbConnector extends JavaService {
     }
 
     @RequestResponse
-    public Value query(Value request) throws FaultException {
+    public Value find(Value request) throws FaultException {
         Value v = Value.create();
-        FindIterable<BsonDocument> iterable;
-        iterable = null;
+        FindIterable<BsonDocument> iterable = null;
+        ;
         try {
 
             String collectionName = request.getFirstChild("collection").strValue();
             MongoCollection<BsonDocument> collection = db.getCollection(collectionName, BsonDocument.class);
             if (request.hasChildren("readConcern")) {
+                
                 ReadConcern readConcern = new ReadConcern(ReadConcernLevel.fromString(request.getFirstChild("readConcern").strValue()));
                 collection.withReadConcern(readConcern);
             }
@@ -206,18 +212,19 @@ public class MongoDbConnector extends JavaService {
                     BsonDocument bsonSortDocument = BsonDocument.parse(request.getFirstChild("sort").strValue());
                     prepareBsonQueryData(bsonSortDocument, request.getFirstChild("sort"));
                     printlnJson("Query sort", bsonSortDocument);
-                    int limitQuery = request.getFirstChild("limit").intValue();
-                    iterable = collection.find().sort(bsonSortDocument).limit(limitQuery);
+                    int findLimit = request.getFirstChild("limit").intValue();
+                   
+                    iterable = collection.find(new Document()).sort(bsonSortDocument);  ///.sort(bsonSortDocument).limit(limitQuery);
                 }
                 if (request.hasChildren("sort") && !request.hasChildren("limit")) {
                     BsonDocument bsonSortDocument = BsonDocument.parse(request.getFirstChild("sort").strValue());
                     prepareBsonQueryData(bsonSortDocument, request.getFirstChild("sort"));
                     printlnJson("Query sort", bsonSortDocument);
-                    iterable = collection.find().sort(bsonSortDocument);
+                    iterable = collection.find(new Document()).sort(bsonSortDocument);
                 }
                 if (!request.hasChildren("sort") && request.hasChildren("limit")) {
                     int limitQuery = request.getFirstChild("limit").intValue();
-                    iterable = collection.find().limit(limitQuery);
+                    iterable = collection.find(new Document()).limit(limitQuery);
                 }
                 if (!request.hasChildren("sort") && !request.hasChildren("limit")) {
 
@@ -293,19 +300,18 @@ public class MongoDbConnector extends JavaService {
             return v;
         } catch (MongoException ex) {
             throw new FaultException("MongoException", ex);
-        } catch (JsonParseException ex) {
-            throw new FaultException("JsonParseException", ex);
         }
 
     }
 
     @RequestResponse
     public Value insertMany(Value request) throws FaultException {
+        Value v = Value.create();
+        String collectionName = request.getFirstChild("collection").strValue();
+        List<BsonDocument> documents = new ArrayList();
+        BsonDocument bsonDocument;
         try {
-            Value v = Value.create();
-            String collectionName = request.getFirstChild("collection").strValue();
-            List<BsonDocument> documents = new ArrayList();
-            BsonDocument bsonDocument;
+
             for (int counterDocuments = 0; counterDocuments < request.getChildren("document").size(); counterDocuments++) {
                 bsonDocument = createDocument(request.getChildren("document").get(counterDocuments));
                 documents.add(bsonDocument);
@@ -348,15 +354,13 @@ public class MongoDbConnector extends JavaService {
                 v.getChildren("results").add(result);
             }
 
-            return v;
+            
         } catch (MongoException ex) {
             throw new FaultException("MongoException", ex);
-        } catch (JsonParseException ex) {
-            throw new FaultException("JsonParseException", ex);
         } catch (DecoderException ex) {
-            throw new FaultException("MongoException", ex);
-        }
-
+            Logger.getLogger(MongoDbConnector.class.getName()).log(Level.SEVERE, null, ex);
+        } 
+         return v;
     }
 
     @RequestResponse
@@ -541,9 +545,7 @@ public class MongoDbConnector extends JavaService {
 
         } catch (MongoException ex) {
             throw new FaultException("MongoException", ex);
-        } catch (JsonParseException ex) {
-            throw new FaultException("JsonParseException", ex);
-        }
+        } 
 
     }
 
@@ -695,7 +697,7 @@ public class MongoDbConnector extends JavaService {
 
     }
 
-    @RequestResponse
+ /*   @RequestResponse
     public Value readRoles(Value request) {
         Value v = Value.create();
         MongoCollection<BsonDocument> collection = db.getCollection("system.roles", BsonDocument.class);
@@ -710,8 +712,8 @@ public class MongoDbConnector extends JavaService {
         });
 
         return v;
-    }
-
+        
+    }*/
     @RequestResponse
     public Value createUser(Value request) {
         Value v = Value.create();
