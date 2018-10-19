@@ -28,10 +28,12 @@ public class Test {
         connectValue.getNewChild("username").add(Value.create("butiko"));
         connectValue.getNewChild("jsonStringDebug").add(Value.create(Boolean.TRUE));
         mongoDbConnector.connect(connectValue);
-
-       
-      
-
+        Value findValue = Value.create();
+        findValue.getNewChild("collection").add(Value.create("Shops"));
+        findValue.getNewChild("filter").add(Value.create("{'tags.tag':/$searchValue/i}"));
+        findValue.getFirstChild("filter").getNewChild("searchValue").add(Value.create("b"));
+        //findValue.getFirstChild("filter").getNewChild("lang").add(Value.create("en"));
+        mongoDbConnector.find(findValue);
          
        System.out.println();
             
