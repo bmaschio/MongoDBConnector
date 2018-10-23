@@ -820,6 +820,20 @@ public class MongoDbConnector extends JavaService
 			bsonPoint.add( coordinateElement );
 			bsonValue = new BsonDocument( bsonPoint );
 		}
+		
+		if ( v.getFirstChild( "@type" ).strValue().equals( "InlineArray" ) ) {
+			BsonArray bsonArray = new BsonArray();
+			for (int counter= 0 ; counter < v.getChildren( "inlineArray").size() ; counter++  ){
+			      if (v.getChildren( "inlineArray").get( counter ).isDouble()){
+				   bsonArray.add( new BsonDouble(v.getChildren( "inlineArray").get( counter ).doubleValue()));
+				  } else if (v.getChildren( "inlineArray").get( counter ).isInt()){
+				    bsonArray.add( new BsonInt32(v.getChildren( "inlineArray").get( counter ).intValue()));
+				  }
+			
+			}
+				
+				
+		}
 
 		return bsonValue;
 	}
@@ -899,7 +913,45 @@ public class MongoDbConnector extends JavaService
 					bsonQueryDocument.put( keyName, regularExpression );
 				}
 
-			}
+			} else if ( bsonQueryDocument.isArray( keyName ) ) {
+				BsonArray bsonArray = bsonQueryDocument.getArray( keyName );
+                int bsonCounter = 0;
+				for( BsonValue bsonValue : bsonArray ) {
+					if ( bsonValue instanceof BsonString ) {
+						BsonString conditionValueName = bsonValue.asString();
+						if ( conditionValueName.getValue().startsWith( "$" ) ) {
+							String conditionValueVariableName = conditionValueName.getValue().substring( 1 );
+							//processing single values
+							if ( request.getChildren( conditionValueVariableName ).size() <= 1 ) {
+								if ( request.getFirstChild( conditionValueVariableName ).hasChildren( "@type" ) ) {
+									bsonArray.set( bsonCounter, convertComplexType( request.getFirstChild( conditionValueVariableName ) ) );
+								} else if ( request.getFirstChild( conditionValueVariableName ).hasChildren() ) {
+									bsonArray.set( bsonCounter, createDocument( request.getFirstChild( conditionValueVariableName ) ) );
+								} else {
+									bsonArray.set( bsonCounter, convertNaturalTypeToBson( request.getFirstChild( conditionValueVariableName ) ) );
+								}
+							} else {
+								BsonArray condisionArray = new BsonArray();
+								for( int counter = 0; counter < request.getChildren( conditionValueVariableName ).size(); counter++ ) {
+
+									if ( request.getChildren( conditionValueVariableName ).get( counter ).hasChildren( "@type" ) ) {
+										condisionArray.add( convertComplexType( request.getChildren( conditionValueVariableName ).get( counter ) ) );
+									} else {
+										condisionArray.add( convertNaturalTypeToBson( request.getChildren( conditionValueVariableName ).get( counter ) ) );
+									}
+
+								}
+								bsonArray.set( bsonCounter, condisionArray );
+								bsonQueryDocument.put( keyName, condisionArray );
+
+							}
+						}
+
+					}
+					bsonCounter++;
+				}
+				bsonQueryDocument.put( keyName, bsonArray );
+			}			 
 
 		}
 		return bsonQueryDocument;

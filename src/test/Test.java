@@ -29,11 +29,15 @@ public class Test {
         connectValue.getNewChild("jsonStringDebug").add(Value.create(Boolean.TRUE));
         mongoDbConnector.connect(connectValue);
         Value findValue = Value.create();
-        findValue.getNewChild("collection").add(Value.create("Shops"));
-        findValue.getNewChild("filter").add(Value.create("{'tags.tag':/$searchValue/i}"));
-        findValue.getFirstChild("filter").getNewChild("searchValue").add(Value.create("b"));
-        //findValue.getFirstChild("filter").getNewChild("lang").add(Value.create("en"));
-        mongoDbConnector.find(findValue);
+        findValue.getNewChild( "collection").setValue( "Shops");
+        findValue.getNewChild("filter").add(Value.create("{ $match: { $text: { $search: '$tags' } ,location: {$geoWithin: {$centerSphere: ['$pos', 5000] }}}}"));
+	
+		//inline.getNew
+        //findValue.getFirstChild("filter").getNewChild("centerSphere").add(Value.get);
+		findValue.getFirstChild("filter").getChildren("pos").add(Value.create( new Double(44.4875055)));
+		findValue.getFirstChild("filter").getChildren("pos").add(Value.create( new Double(11.36450979)));
+        findValue.getFirstChild("filter").getChildren("tags").add(Value.create("bar"));
+        mongoDbConnector.aggregate(findValue);
          
        System.out.println();
             
