@@ -1101,6 +1101,15 @@ public class MongoDbConnector extends JavaService
 							}
 
 						}
+                                                if ( valueVector.get( counterValueVector ).isLong()) {
+                                                    BsonInt64 bsonObj = new BsonInt64( valueVector.get( counterValueVector ).longValue());
+                                                    if ( valueVector.size() == 1 ) {
+                                                            bsonDocument.append( entry.getKey(), bsonObj );
+                                                    } else {
+                                                            bsonArray.add( counterValueVector, bsonObj );
+                                                    }
+
+						}
 						if ( valueVector.get( counterValueVector ).isByteArray() ) {
 							BsonBinary bsonObj = new BsonBinary( valueVector.get( counterValueVector ).byteArrayValue().getBytes() );
 							if ( valueVector.size() == 1 ) {
