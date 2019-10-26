@@ -887,18 +887,17 @@ public class MongoDbConnector extends JavaService
 							bsonQueryDocument.put( keyName, convertNaturalTypeToBson( request.getFirstChild( conditionValueVariableName ) ) );
 						}
 					} else {
-						BsonArray condisionArray = new BsonArray();
+						BsonArray conditionArray = new BsonArray();
 						for( int counter = 0; counter < request.getChildren( conditionValueVariableName ).size(); counter++ ) {
 
 							if ( request.getChildren( conditionValueVariableName ).get( counter ).hasChildren( "@type" ) ) {
-								condisionArray.add( convertComplexType( request.getChildren( conditionValueVariableName ).get( counter ) ) );
+								conditionArray.add( convertComplexType( request.getChildren( conditionValueVariableName ).get( counter ) ) );
 							} else {
-								condisionArray.add( convertNaturalTypeToBson( request.getChildren( conditionValueVariableName ).get( counter ) ) );
+								conditionArray.add( convertNaturalTypeToBson( request.getChildren( conditionValueVariableName ).get( counter ) ) );
 							}
 
 						}
-						bsonQueryDocument.put( keyName, condisionArray );
-
+						bsonQueryDocument.put(keyName, conditionArray );
 					}
 				}
 
@@ -915,7 +914,7 @@ public class MongoDbConnector extends JavaService
 
 			} else if ( bsonQueryDocument.isArray( keyName ) ) {
 				BsonArray bsonArray = bsonQueryDocument.getArray( keyName );
-                int bsonCounter = 0;
+                                int bsonCounter = 0;
 				for( BsonValue bsonValue : bsonArray ) {
 					if ( bsonValue instanceof BsonString ) {
 						BsonString conditionValueName = bsonValue.asString();
@@ -931,23 +930,24 @@ public class MongoDbConnector extends JavaService
 									bsonArray.set( bsonCounter, convertNaturalTypeToBson( request.getFirstChild( conditionValueVariableName ) ) );
 								}
 							} else {
-								BsonArray condisionArray = new BsonArray();
+								BsonArray conditionArray = new BsonArray();
 								for( int counter = 0; counter < request.getChildren( conditionValueVariableName ).size(); counter++ ) {
 
 									if ( request.getChildren( conditionValueVariableName ).get( counter ).hasChildren( "@type" ) ) {
-										condisionArray.add( convertComplexType( request.getChildren( conditionValueVariableName ).get( counter ) ) );
+										conditionArray.add( convertComplexType( request.getChildren( conditionValueVariableName ).get( counter ) ) );
 									} else {
-										condisionArray.add( convertNaturalTypeToBson( request.getChildren( conditionValueVariableName ).get( counter ) ) );
+										conditionArray.add( convertNaturalTypeToBson( request.getChildren( conditionValueVariableName ).get( counter ) ) );
 									}
 
 								}
-								bsonArray.set( bsonCounter, condisionArray );
-								bsonQueryDocument.put( keyName, condisionArray );
-
+								bsonArray.set(bsonCounter, conditionArray );
+								bsonQueryDocument.put(keyName, conditionArray );
 							}
 						}
 
-					}
+					} else if ( bsonValue instanceof BsonDocument ) {
+                                            bsonArray.set( bsonCounter, prepareBsonQueryData( bsonValue.asDocument(), request) );
+                                        }
 					bsonCounter++;
 				}
 				bsonQueryDocument.put( keyName, bsonArray );
